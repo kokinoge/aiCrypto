@@ -259,6 +259,12 @@ class TradingBot:
         logger.info("Mode: %s", mode_display.get(self._config.mode, self._config.mode))
         if self._config.is_paper:
             logger.info("Paper balance: $%.2f", self._config.paper_trading_balance)
+
+        logger.info("ENV CHECK: DISCORD_BOT_TOKEN=%s", "SET" if self._config.discord_bot_token else "MISSING")
+        logger.info("ENV CHECK: DISCORD_NANSEN_CHANNEL_ID=%s", self._config.discord_nansen_channel_id or "MISSING")
+        logger.info("ENV CHECK: DISCORD_NOTIFY_CHANNEL_ID=%s", self._config.discord_notify_channel_id or "MISSING")
+        logger.info("ENV CHECK: HL_ACCOUNT_ADDRESS=%s", "SET" if self._config.hl_account_address else "MISSING")
+        logger.info("ENV CHECK: ANTHROPIC_API_KEY=%s", "SET" if self._config.anthropic_api_key else "MISSING")
         logger.info("=" * 60)
 
         tradeable = self._hl_client.get_tradeable_coins()
