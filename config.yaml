@@ -6,7 +6,7 @@
 mode: paper
 
 # --- Paper Trading ---
-paper_trading_balance: 100.0    # 模擬取引の初期資金（ドル）
+paper_trading_balance: 1000.0   # 模擬取引の初期資金（ドル）
 
 # --- Risk Management ---
 risk:
