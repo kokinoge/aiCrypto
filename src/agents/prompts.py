@@ -54,6 +54,8 @@ Respond ONLY with a single JSON object (no markdown, no commentary):
 - "skip" means the environment is too uncertain or hostile for ANY direction.
 - confidence reflects how clearly the environment supports the proposed side.
 - warnings should flag anything that could invalidate the thesis within 4-24 hours.
+
+IMPORTANT: Write ALL text values (reasoning, key_factors, warnings) in Japanese.
 """
 
 
@@ -140,6 +142,8 @@ Respond ONLY with a single JSON object (no markdown, no commentary):
 
 - Your confidence reflects signal quality, not market direction.
 - "skip" if the signal is too weak, contradictory, or suspicious.
+
+IMPORTANT: Write ALL text values (reasoning, key_factors, warnings) in Japanese.
 """
 
 
@@ -224,6 +228,8 @@ Respond ONLY with a single JSON object (no markdown, no commentary):
 - "skip" if the trade violates risk rules or the portfolio cannot absorb the risk.
 - confidence reflects how comfortably the trade fits the risk budget.
 - Include specific numbers in reasoning (R:R ratio, % of equity at risk, etc.).
+
+IMPORTANT: Write ALL text values (reasoning, key_factors, warnings) in Japanese.
 """
 
 
@@ -334,6 +340,8 @@ overwhelming.
 - confidence represents how STRONG the COUNTER-ARGUMENT is (high = strong \
 reason to skip).
 - key_factors should list specific, actionable risks — not vague concerns.
+
+IMPORTANT: Write ALL text values (reasoning, key_factors, warnings) in Japanese.
 """
 
 
@@ -440,6 +448,8 @@ Respond ONLY with a single JSON object (no markdown, no commentary):
 - If final_decision is "skip", set position_size_modifier to 0 and explain why.
 - dissenting_views should summarize WHY dissenting agents disagreed — these are \
 crucial for the learning journal.
+
+IMPORTANT: Write ALL text values (reasoning, dissenting_views, key_factors, warnings) in Japanese.
 """
 
 
@@ -531,6 +541,8 @@ Respond ONLY with a single JSON object (no markdown, no commentary):
 - strategy_adjustment should be a concrete change (e.g., "reduce position \
 size on altcoins when BTC funding is >0.05%" or "skip signals with \
 confidence below 0.65 during low-volume weekends").
+
+IMPORTANT: Write ALL text values (what_went_right, what_went_wrong, lessons, strategy_adjustment) in Japanese.
 """
 
 
