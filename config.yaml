@@ -1,0 +1,38 @@
+# ===== Trading Bot Configuration =====
+
+# "paper" = お金を使わない模擬取引（テスト用）
+# "testnet" = テストネット（テスト用USDC）
+# "mainnet" = 本番（本物のお金）
+mode: paper
+
+# --- Paper Trading ---
+paper_trading_balance: 100.0    # 模擬取引の初期資金（ドル）
+
+# --- Risk Management ---
+risk:
+  max_risk_per_trade_pct: 3.0    # 1取引の最大リスク（資金の%）
+  stop_loss_pct: 5.0             # ストップロス（エントリーからの%）
+  take_profit_pct: 10.0          # テイクプロフィット（エントリーからの%）
+  max_positions: 3               # 同時ポジション上限
+  max_drawdown_pct: 20.0         # 最大ドローダウン（%） → 超えたらBot停止
+  max_leverage: 3                # 最大レバレッジ
+
+# --- Signal Settings ---
+signals:
+  min_confidence: 0.6            # シグナルの最低信頼度（0.0〜1.0）
+  cooldown_minutes: 30           # 同一トークンの連続取引を防ぐ間隔（分）
+
+# --- Trading Pairs ---
+# 空の場合は全ペア対象。制限したい場合はリストで指定
+trading_pairs: []
+
+# --- Webhook Server ---
+# Discordに加えて、HTTPでもシグナルを受信できる
+webhook:
+  enabled: true                  # Webhookサーバーを有効にする
+  port: 8080                     # 待ち受けポート番号
+
+# --- Logging ---
+logging:
+  level: INFO
+  file: logs/bot.log
