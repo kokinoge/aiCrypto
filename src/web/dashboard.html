@@ -2,321 +2,322 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Smart Money Bot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#0a0a0f;--surface:#12121a;--border:rgba(255,255,255,0.06);
+  --bg:#08080d;--surface:#111118;--surface2:#16161f;--border:rgba(255,255,255,0.06);
   --text:#e8e8ed;--text-s:#8b8b9e;--text-m:#55556a;
-  --green:#00d68f;--red:#ff4d6a;--blue:#4d9fff;--purple:#8b5cf6;
-  --radius:6px;--ease:cubic-bezier(0.25,1,0.5,1);
+  --green:#00d68f;--red:#ff4d6a;--blue:#4d9fff;--purple:#8b5cf6;--amber:#f59e0b;
+  --radius:8px;--ease:cubic-bezier(0.25,1,0.5,1);
 }
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+html,body{height:100%;background:var(--bg);color:var(--text);
   font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5;
-  -webkit-font-smoothing:antialiased}
+  -webkit-font-smoothing:antialiased;overflow:hidden}
 
-.app{display:grid;height:100vh;padding:16px;gap:12px;
-  grid-template-rows:auto 1fr 1fr;grid-template-columns:1fr 1fr}
+/* Layout: sidebar + main */
+.app{display:grid;height:100vh;grid-template-columns:240px 1fr}
 
-/* Header */
-.header{grid-column:1/-1;display:flex;align-items:center;gap:12px;
-  padding:10px 16px;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius)}
-.header-title{font-size:14px;font-weight:600;letter-spacing:-0.02em;display:flex;align-items:center;gap:8px}
-.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 6px var(--green);flex-shrink:0}
-.status-dot.offline{background:var(--red);box-shadow:0 0 6px var(--red)}
-.mode-badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;
-  background:rgba(139,92,246,0.12);color:var(--purple);letter-spacing:0.02em}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:16px}
-.refresh-info{font-size:11px;color:var(--text-m);font-variant-numeric:tabular-nums}
-.updated{font-size:11px;color:var(--text-m)}
+/* Sidebar */
+.sidebar{background:var(--surface);border-right:0.5px solid var(--border);display:flex;flex-direction:column;padding:0;overflow:hidden}
+.sidebar-header{padding:20px 20px 16px;border-bottom:0.5px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:-0.03em}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0}
+.logo-dot.offline{background:var(--red);box-shadow:0 0 8px var(--red)}
+.mode-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;
+  background:rgba(139,92,246,0.12);color:var(--purple);letter-spacing:0.04em;margin-top:8px}
 
-/* Stat cards row */
-.stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.stat-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px}
-.stat-label{font-size:11px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px}
-.stat-value{font-size:24px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;transition:color .2s var(--ease)}
-.stat-sub{font-size:11px;color:var(--text-m);margin-top:4px;font-variant-numeric:tabular-nums}
+.sidebar-stats{padding:16px 20px;flex:1;overflow-y:auto}
+.sidebar-stat{margin-bottom:20px}
+.sidebar-stat-label{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.sidebar-stat-value{font-size:22px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+.sidebar-stat-sub{font-size:11px;color:var(--text-m);margin-top:2px;font-variant-numeric:tabular-nums}
 .positive{color:var(--green)}.negative{color:var(--red)}
 
-/* Card */
-.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);
-  display:flex;flex-direction:column;overflow:hidden}
-.card-header{padding:12px 16px;border-bottom:0.5px solid var(--border);
-  font-size:12px;font-weight:600;color:var(--text-s);letter-spacing:-0.01em;
-  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.card-body{padding:12px 16px;flex:1;overflow-y:auto;min-height:0}
-.card-body::-webkit-scrollbar{width:4px}
-.card-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sidebar-divider{height:0.5px;background:var(--border);margin:4px 20px}
 
-/* Table */
+.sidebar-section-title{font-size:10px;font-weight:600;color:var(--text-m);text-transform:uppercase;
+  letter-spacing:0.06em;padding:12px 20px 8px}
+.sidebar-row{display:flex;justify-content:space-between;align-items:center;padding:6px 20px;font-size:12px}
+.sidebar-row-label{color:var(--text-s)}
+.sidebar-row-value{font-weight:600;font-variant-numeric:tabular-nums}
+
+.sidebar-footer{padding:12px 20px;border-top:0.5px solid var(--border);font-size:10px;color:var(--text-m);
+  display:flex;justify-content:space-between;align-items:center}
+
+/* Main content */
+.main{display:grid;grid-template-rows:1fr 1fr;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);overflow:hidden}
+.panel{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  border-bottom:0.5px solid var(--border)}
+.panel-title{font-size:12px;font-weight:600;color:var(--text-s);letter-spacing:0.01em}
+.panel-badge{font-size:10px;color:var(--text-m);font-variant-numeric:tabular-nums}
+.panel-body{flex:1;overflow-y:auto;padding:0;min-height:0}
+.panel-body::-webkit-scrollbar{width:4px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* Positions table */
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em;
-  text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--surface)}
-td{padding:8px;font-size:12px;border-bottom:0.5px solid var(--border)}
+th{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.05em;
+  text-align:left;padding:8px 12px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg)}
+td{padding:10px 12px;font-size:12px;border-bottom:0.5px solid var(--border)}
 tr:last-child td{border-bottom:none}
-.dir-long{color:var(--green);font-weight:500}.dir-short{color:var(--red);font-weight:500}
+tr:hover td{background:var(--surface)}
+.dir-long{color:var(--green);font-weight:600}.dir-short{color:var(--red);font-weight:600}
 
 /* Trade list */
-.trade-item{padding:8px 0;border-bottom:0.5px solid var(--border);display:grid;
-  grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:baseline}
+.trade-item{padding:10px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
 .trade-item:last-child{border-bottom:none}
+.trade-item:hover{background:var(--surface)}
+.trade-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;flex-shrink:0}
+.trade-icon.win{background:rgba(0,214,143,0.1);color:var(--green)}
+.trade-icon.loss{background:rgba(255,77,106,0.1);color:var(--red)}
+.trade-info{flex:1;min-width:0}
 .trade-coin{font-weight:600;font-size:12px}
-.trade-side{font-size:10px;font-weight:500}
-.trade-meta{font-size:11px;color:var(--text-m);grid-column:2/3}
-.trade-pnl{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
-.trade-date{font-size:10px;color:var(--text-m);text-align:right}
-
-/* Learning section */
-.learn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
-.learn-stat{text-align:center}
-.learn-stat-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
-.learn-stat-label{font-size:10px;color:var(--text-m);margin-top:2px}
-.lesson-item{padding:6px 0;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text-s);line-height:1.4}
-.lesson-item:last-child{border-bottom:none}
-.lessons-title{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
+.trade-meta{font-size:10px;color:var(--text-m);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trade-right{text-align:right;flex-shrink:0}
+.trade-pnl{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.trade-date{font-size:10px;color:var(--text-m);margin-top:1px}
 
 /* Agent accuracy */
-.agent-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.agent-row:last-child{margin-bottom:0}
-.agent-name{font-size:11px;font-weight:500;width:80px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.agent-bar-bg{flex:1;height:6px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden}
-.agent-bar{height:100%;border-radius:3px;background:var(--purple);transition:width .4s var(--ease)}
+.agent-row{display:flex;align-items:center;gap:10px;padding:8px 20px}
+.agent-name{font-size:11px;font-weight:500;width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-s)}
+.agent-bar-bg{flex:1;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
+.agent-bar{height:100%;border-radius:2px;transition:width .5s var(--ease)}
+.agent-bar.high{background:var(--green)}.agent-bar.mid{background:var(--amber)}.agent-bar.low{background:var(--red)}.agent-bar.default{background:var(--purple)}
 .agent-pct{font-size:11px;font-variant-numeric:tabular-nums;color:var(--text-s);width:36px;text-align:right;flex-shrink:0}
-.analysis-box{margin-top:12px;padding:10px 12px;background:rgba(139,92,246,0.06);border:0.5px solid rgba(139,92,246,0.12);
-  border-radius:4px;font-size:11px;color:var(--text-s);line-height:1.5}
-.analysis-label{font-size:10px;font-weight:500;color:var(--purple);margin-bottom:4px}
+
+/* Lessons */
+.lesson-item{padding:10px 20px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text-s);line-height:1.5}
+.lesson-item:last-child{border-bottom:none}
+.lesson-item:hover{background:var(--surface)}
+.lesson-num{display:inline-block;width:16px;color:var(--text-m);font-variant-numeric:tabular-nums}
 
 /* Empty state */
 .empty{display:flex;align-items:center;justify-content:center;height:100%;
-  font-size:12px;color:var(--text-m);font-style:italic}
+  font-size:12px;color:var(--text-m);padding:24px}
 
-/* Loading */
-.loading{opacity:0.5;pointer-events:none}
-.skeleton{background:linear-gradient(90deg,var(--border) 25%,rgba(255,255,255,0.08) 50%,var(--border) 75%);
-  background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:20px}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-@media(max-width:900px){
-  .stats{grid-template-columns:repeat(2,1fr)}
-  .app{grid-template-rows:auto auto repeat(4,1fr);grid-template-columns:1fr;overflow-y:auto}
-  .header{grid-column:1}
-  .stats{grid-column:1}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .main{grid-template-rows:repeat(4,1fr);grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
-<div class="app" id="app">
+<div class="app">
 
-  <header class="header">
-    <div class="header-title">
-      <span class="status-dot" id="statusDot"></span>
-      Smart Money Bot
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo"><span class="logo-dot" id="statusDot"></span>Smart Money Bot</div>
+      <div class="mode-badge" id="modeBadge">模擬取引</div>
     </div>
-    <span class="mode-badge" id="modeBadge">模擬取引</span>
-    <div class="header-right">
-      <span class="refresh-info" id="countdown"></span>
-      <span class="updated" id="lastUpdated">更新中...</span>
-    </div>
-  </header>
 
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-label">資産</div>
-      <div class="stat-value" id="equity">—</div>
-      <div class="stat-sub" id="cash"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">総損益</div>
-      <div class="stat-value" id="pnl">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">リターン</div>
-      <div class="stat-value" id="returnPct">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">勝率</div>
-      <div class="stat-value" id="winRate">—</div>
-      <div class="stat-sub" id="winLoss"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">オープンポジション</div>
-    <div class="card-body" id="positions"><div class="empty">ポジションなし</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">取引履歴</div>
-    <div class="card-body" id="trades"><div class="empty">取引履歴なし</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">学習状況</div>
-    <div class="card-body" id="learning">
-      <div class="learn-grid">
-        <div class="learn-stat"><div class="learn-stat-val" id="ruleCount">0</div><div class="learn-stat-label">アクティブルール</div></div>
-        <div class="learn-stat"><div class="learn-stat-val" id="streak">—</div><div class="learn-stat-label">連続記録</div></div>
-        <div class="learn-stat"><div class="learn-stat-val" id="sizeMod">1.0x</div><div class="learn-stat-label">サイズ倍率</div></div>
+    <div class="sidebar-stats">
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">資産</div>
+        <div class="sidebar-stat-value" id="equity">—</div>
+        <div class="sidebar-stat-sub" id="initialBal"></div>
       </div>
-      <div class="lessons-title">最近の学習</div>
-      <div id="lessons"><div class="empty" style="height:auto;padding:12px 0">学習なし</div></div>
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">総損益</div>
+        <div class="sidebar-stat-value" id="pnl">—</div>
+      </div>
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">リターン</div>
+        <div class="sidebar-stat-value" id="returnPct">—</div>
+      </div>
+      <div class="sidebar-stat">
+        <div class="sidebar-stat-label">勝率</div>
+        <div class="sidebar-stat-value" id="winRate">—</div>
+        <div class="sidebar-stat-sub" id="winLoss"></div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section-title">学習状況</div>
+      <div class="sidebar-row"><span class="sidebar-row-label">ルール</span><span class="sidebar-row-value" id="ruleCount">0</span></div>
+      <div class="sidebar-row"><span class="sidebar-row-label">連続記録</span><span class="sidebar-row-value" id="streak">—</span></div>
+      <div class="sidebar-row"><span class="sidebar-row-label">サイズ倍率</span><span class="sidebar-row-value" id="sizeMod">1.0x</span></div>
+      <div class="sidebar-row"><span class="sidebar-row-label">現金</span><span class="sidebar-row-value" id="cash">—</span></div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="card-header">AI分析<span class="refresh-info" id="analysisCount"></span></div>
-    <div class="card-body" id="analysis"><div class="empty">分析データなし</div></div>
-  </div>
+    <div class="sidebar-footer">
+      <span id="lastUpdated">更新中...</span>
+      <span id="countdown"></span>
+    </div>
+  </aside>
 
+  <!-- Main 2x2 grid -->
+  <div class="main">
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">オープンポジション</span>
+        <span class="panel-badge" id="posCount">0件</span>
+      </div>
+      <div class="panel-body" id="positions"><div class="empty">ポジションなし</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">取引履歴</span>
+        <span class="panel-badge" id="tradeCount">0件</span>
+      </div>
+      <div class="panel-body" id="trades"><div class="empty">取引履歴なし</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">AI エージェント精度</span>
+        <span class="panel-badge" id="agentCount"></span>
+      </div>
+      <div class="panel-body" id="agents"><div class="empty">分析データなし</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">学習ログ</span>
+      </div>
+      <div class="panel-body" id="lessons"><div class="empty">学習データなし</div></div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
-const INTERVAL = 30;
-let timer = INTERVAL;
-let intervalId;
+const $=id=>document.getElementById(id);
+const INTERVAL=30;
+let timer=INTERVAL;
 
-function fmt(n, d = 2) {
-  return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-}
+function fmt(n,d=2){return Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function pc(v){return v>0?'positive':v<0?'negative':''}
 
-function pnlClass(v) { return v > 0 ? 'positive' : v < 0 ? 'negative' : ''; }
-
-function animateValue(el, newText, colorClass) {
-  if (el.textContent === newText && el.className.includes(colorClass || '')) return;
-  el.style.transition = 'none';
-  el.style.opacity = '0.4';
-  requestAnimationFrame(() => {
-    el.style.transition = 'opacity .3s var(--ease)';
-    el.textContent = newText;
-    el.className = 'stat-value ' + (colorClass || '');
-    el.style.opacity = '1';
-  });
-}
-
-function renderPositions(positions) {
-  const el = $('positions');
-  if (!positions || !positions.length) { el.innerHTML = '<div class="empty">ポジションなし</div>'; return; }
-  const rows = positions.map(p => {
-    const dirCls = p.side === 'long' ? 'dir-long' : 'dir-short';
-    const dirLabel = p.side === 'long' ? 'ロング' : 'ショート';
-    const pnlVal = p.unrealized_pnl || p.pnl || 0;
-    const pnlPct = p.pnl_pct || 0;
-    return `<tr>
-      <td style="font-weight:600">${p.symbol || p.coin || '—'}</td>
-      <td class="${dirCls}">${dirLabel}</td>
-      <td>$${fmt(p.entry_price)}</td>
-      <td>$${fmt(p.current_price)}</td>
-      <td class="${pnlClass(pnlVal)}" style="font-weight:600">$${fmt(pnlVal)}</td>
-      <td class="${pnlClass(pnlPct)}">${fmt(pnlPct)}%</td>
-    </tr>`;
+function renderPositions(positions){
+  const el=$('positions');
+  $('posCount').textContent=(positions?.length||0)+'件';
+  if(!positions||!positions.length){el.innerHTML='<div class="empty">ポジションなし</div>';return}
+  const rows=positions.map(p=>{
+    const dc=p.side==='long'?'dir-long':'dir-short';
+    const dl=p.side==='long'?'ロング':'ショート';
+    const pnl=p.unrealized_pnl||0;
+    const pnlPct=p.entry_price?(((p.current_price-p.entry_price)/p.entry_price)*100*(p.side==='short'?-1:1)):0;
+    return`<tr><td style="font-weight:600">${p.coin||'—'}</td><td class="${dc}">${dl}</td>
+    <td>$${fmt(p.entry_price)}</td><td>$${fmt(p.current_price||p.entry_price)}</td>
+    <td class="${pc(pnl)}" style="font-weight:600">${pnl>=0?'+':''}$${fmt(pnl)}</td>
+    <td class="${pc(pnlPct)}">${pnlPct>=0?'+':''}${fmt(pnlPct,1)}%</td></tr>`
   }).join('');
-  el.innerHTML = `<table><thead><tr><th>コイン</th><th>方向</th><th>参入価格</th><th>現在価格</th><th>損益</th><th>損益%</th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=`<table><thead><tr><th>コイン</th><th>方向</th><th>参入</th><th>現在</th><th>損益</th><th>%</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 
-function renderTrades(trades) {
-  const el = $('trades');
-  if (!trades || !trades.length) { el.innerHTML = '<div class="empty">取引履歴なし</div>'; return; }
-  const items = trades.slice(0, 10).map(t => {
-    const pnl = t.pnl || 0;
-    const side = t.side === 'long' ? 'ロング' : 'ショート';
-    const sideCls = t.side === 'long' ? 'dir-long' : 'dir-short';
-    const date = t.closed_at ? new Date(t.closed_at).toLocaleDateString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    return `<div class="trade-item">
-      <span class="trade-coin">${t.symbol || t.coin || '—'}</span>
-      <span class="trade-meta"><span class="trade-side ${sideCls}">${side}</span> ${t.reason || ''}</span>
-      <span class="trade-pnl ${pnlClass(pnl)}">$${fmt(pnl)}</span>
-      <span></span><span></span>
-      <span class="trade-date">${date}</span>
-    </div>`;
-  }).join('');
-  el.innerHTML = items;
+function renderTrades(trades){
+  const el=$('trades');
+  const t=trades||[];
+  $('tradeCount').textContent=t.length+'件';
+  if(!t.length){el.innerHTML='<div class="empty">取引履歴なし</div>';return}
+  const reasons={'STOP LOSS':'損切り','TAKE PROFIT':'利確','EMERGENCY CLOSE':'緊急決済'};
+  el.innerHTML=t.slice(-10).reverse().map(tr=>{
+    const pnl=tr.pnl||0;
+    const icon=pnl>=0?'win':'loss';
+    const arrow=pnl>=0?'+':'';
+    const side=tr.side==='long'?'ロング':'ショート';
+    const reason=reasons[tr.reason]||tr.reason||'';
+    const dt=tr.closed_at?new Date(tr.closed_at*1000).toLocaleDateString('ja-JP',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    return`<div class="trade-item">
+      <div class="trade-icon ${icon}">${pnl>=0?'↑':'↓'}</div>
+      <div class="trade-info"><div class="trade-coin">${tr.coin||'—'}</div><div class="trade-meta">${side} · ${reason}</div></div>
+      <div class="trade-right"><div class="trade-pnl ${pc(pnl)}">${arrow}$${fmt(Math.abs(pnl))}</div><div class="trade-date">${dt}</div></div>
+    </div>`
+  }).join('')
 }
 
-function renderLearning(data) {
-  $('ruleCount').textContent = data.active_rules || 0;
-  const [streakType, streakN] = data.streak || ['none', 0];
-  const streakLabel = streakType === 'win' ? `${streakN}勝` : streakType === 'loss' ? `${streakN}敗` : '—';
-  $('streak').textContent = streakLabel;
-  $('streak').className = 'learn-stat-val ' + (streakType === 'win' ? 'positive' : streakType === 'loss' ? 'negative' : '');
-  $('sizeMod').textContent = (data.position_size_modifier || 1).toFixed(1) + 'x';
-
-  const lessonsEl = $('lessons');
-  const lessons = data.lessons || [];
-  if (!lessons.length) { lessonsEl.innerHTML = '<div class="empty" style="height:auto;padding:12px 0">学習なし</div>'; return; }
-  lessonsEl.innerHTML = lessons.slice(0, 3).map(l => `<div class="lesson-item">${typeof l === 'string' ? l : (l.text || l.rule || JSON.stringify(l))}</div>`).join('');
+function renderAgents(acc){
+  const el=$('agents');
+  const entries=Object.entries(acc||{});
+  $('agentCount').textContent=entries.length?entries.length+'体':'';
+  if(!entries.length){el.innerHTML='<div class="empty">分析データなし</div>';return}
+  const names={'MarketAnalyst':'市場分析','SignalValidator':'シグナル検証','RiskManager':'リスク管理','Contrarian':'反対意見','Strategist':'司令塔'};
+  el.innerHTML=entries.map(([name,val])=>{
+    const pct=typeof val==='number'?val:(val.accuracy||0);
+    const p=Math.round(pct*(pct<=1?100:1));
+    const cls=p>=70?'high':p>=50?'mid':p>=30?'low':'default';
+    const label=names[name]||name;
+    return`<div class="agent-row"><span class="agent-name" title="${name}">${label}</span>
+    <div class="agent-bar-bg"><div class="agent-bar ${cls}" style="width:${p}%"></div></div>
+    <span class="agent-pct">${p}%</span></div>`
+  }).join('')
 }
 
-function renderAnalysis(data) {
-  const el = $('analysis');
-  const acc = data.agent_accuracy || {};
-  const agents = Object.entries(acc);
-  if (!agents.length && !data.last_decision) { el.innerHTML = '<div class="empty">分析データなし</div>'; return; }
-
-  let html = '';
-  if (agents.length) {
-    $('analysisCount').textContent = `${agents.length}エージェント`;
-    html += agents.map(([name, val]) => {
-      const pct = typeof val === 'number' ? val : (val.accuracy || val.score || 0);
-      const pctN = Math.round(pct * (pct <= 1 ? 100 : 1));
-      return `<div class="agent-row">
-        <span class="agent-name" title="${name}">${name}</span>
-        <div class="agent-bar-bg"><div class="agent-bar" style="width:${pctN}%"></div></div>
-        <span class="agent-pct">${pctN}%</span>
-      </div>`;
-    }).join('');
-  }
-
-  if (data.last_decision) {
-    html += `<div class="analysis-box"><div class="analysis-label">最新判断</div>${data.last_decision}</div>`;
-  }
-  el.innerHTML = html;
+function renderLessons(lessons){
+  const el=$('lessons');
+  const l=lessons||[];
+  if(!l.length){el.innerHTML='<div class="empty">学習データなし</div>';return}
+  el.innerHTML=l.map((item,i)=>{
+    const text=typeof item==='string'?item:(item.lesson||item.text||JSON.stringify(item));
+    return`<div class="lesson-item"><span class="lesson-num">${i+1}.</span>${text}</div>`
+  }).join('')
 }
 
-function update(data) {
-  $('statusDot').className = 'status-dot' + (data.status === 'running' ? '' : ' offline');
-  $('modeBadge').textContent = data.mode === 'paper' ? '模擬取引' : 'ライブ';
-  animateValue($('equity'), '$' + fmt(data.equity), '');
-  $('cash').textContent = '現金: $' + fmt(data.cash);
-  animateValue($('pnl'), (data.total_pnl >= 0 ? '+$' : '-$') + fmt(Math.abs(data.total_pnl)), pnlClass(data.total_pnl));
-  animateValue($('returnPct'), (data.return_pct >= 0 ? '+' : '') + fmt(data.return_pct) + '%', pnlClass(data.return_pct));
-  const wr = data.win_rate || {};
-  animateValue($('winRate'), fmt(wr.win_rate || 0, 1) + '%', '');
-  $('winLoss').textContent = `${wr.wins || 0}勝 / ${wr.losses || 0}敗 (${wr.total || 0}件)`;
-  renderPositions(data.open_positions);
-  renderTrades(data.closed_trades);
-  renderLearning(data);
-  renderAnalysis(data);
-  if (data.last_updated) {
-    const d = new Date(data.last_updated);
-    $('lastUpdated').textContent = d.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ' 更新';
-  }
-}
+function update(d){
+  $('statusDot').className='logo-dot'+(d.status==='running'?'':' offline');
+  const modes={paper:'模擬取引',testnet:'テストネット',mainnet:'本番'};
+  $('modeBadge').textContent=modes[d.mode]||d.mode;
 
-async function fetchData() {
-  try {
-    const res = await fetch('/api/dashboard');
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    update(data);
-    document.body.classList.remove('loading');
-  } catch (e) {
-    console.warn('Fetch failed:', e);
+  $('equity').textContent='$'+fmt(d.equity);
+  $('equity').className='sidebar-stat-value';
+  $('initialBal').textContent='初期: $'+fmt(d.initial_balance);
+  $('cash').textContent='$'+fmt(d.cash);
+
+  const pnl=d.total_pnl||0;
+  $('pnl').textContent=(pnl>=0?'+$':'-$')+fmt(Math.abs(pnl));
+  $('pnl').className='sidebar-stat-value '+pc(pnl);
+
+  const ret=d.return_pct||0;
+  $('returnPct').textContent=(ret>=0?'+':'')+fmt(ret,1)+'%';
+  $('returnPct').className='sidebar-stat-value '+pc(ret);
+
+  const wr=d.win_rate||{};
+  const wrVal=(wr.win_rate||0);
+  $('winRate').textContent=(wrVal*100).toFixed(0)+'%';
+  $('winLoss').textContent=(wr.wins||0)+'勝 / '+(wr.losses||0)+'敗';
+
+  $('ruleCount').textContent=d.active_rules||0;
+  const [st,sn]=d.streak||['none',0];
+  $('streak').textContent=st==='win'?sn+'勝':st==='loss'?sn+'敗':'—';
+  $('streak').className='sidebar-row-value '+(st==='win'?'positive':st==='loss'?'negative':'');
+  $('sizeMod').textContent=(d.position_size_modifier||1).toFixed(1)+'x';
+
+  renderPositions(d.open_positions);
+  renderTrades(d.closed_trades);
+  renderAgents(d.agent_accuracy);
+  renderLessons(d.lessons);
+
+  if(d.last_updated){
+    const dt=new Date(d.last_updated);
+    $('lastUpdated').textContent=dt.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'更新';
   }
 }
 
-function tick() {
+async function fetchData(){
+  try{
+    const r=await fetch('/api/dashboard');
+    if(!r.ok)throw new Error(r.status);
+    update(await r.json());
+  }catch(e){console.warn('Fetch:',e)}
+}
+
+function tick(){
   timer--;
-  if (timer <= 0) { timer = INTERVAL; fetchData(); }
-  $('countdown').textContent = timer + '秒後に更新';
+  if(timer<=0){timer=INTERVAL;fetchData()}
+  $('countdown').textContent=timer+'s';
 }
 
 fetchData();
-intervalId = setInterval(tick, 1000);
+setInterval(tick,1000);
 </script>
 </body>
 </html>
