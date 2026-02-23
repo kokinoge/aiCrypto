@@ -407,6 +407,37 @@ class TradingBot:
                 "leverage": pos.leverage,
             })
 
+        rules_data = []
+        for r in active_rules:
+            rules_data.append({
+                "id": r.id, "description": r.description,
+                "type": r.condition_type, "action": r.action,
+                "triggered": r.times_triggered, "correct": r.times_correct,
+                "source": r.source,
+            })
+
+        coin_stats = self._journal.get_coin_stats(min_trades=1)
+        coin_adjustments = overrides.coin_confidence_adjustments
+
+        config_info = {
+            "mode": self._config.mode,
+            "paper_balance": self._config.paper_trading_balance,
+            "risk_per_trade": self._config.risk.max_risk_per_trade_pct,
+            "stop_loss": self._config.risk.stop_loss_pct,
+            "take_profit": self._config.risk.take_profit_pct,
+            "max_positions": self._config.risk.max_positions,
+            "max_drawdown": self._config.risk.max_drawdown_pct,
+            "max_leverage": self._config.risk.max_leverage,
+            "min_confidence": self._config.signals.min_confidence,
+            "cooldown_minutes": self._config.signals.cooldown_minutes,
+            "trading_pairs": self._config.trading_pairs,
+            "grok_enabled": self._researcher is not None,
+            "anthropic_enabled": bool(self._config.anthropic_api_key),
+            "adaptive_risk": overrides.risk_per_trade_pct,
+            "adaptive_confidence": overrides.min_confidence,
+            "skip_hours": overrides.skip_hours_utc,
+        }
+
         return {
             "status": "running",
             "mode": self._config.mode,
@@ -423,6 +454,10 @@ class TradingBot:
             "position_size_modifier": overrides.position_size_modifier,
             "lessons": [l.get("lesson", str(l)) if isinstance(l, dict) else str(l) for l in lessons],
             "agent_accuracy": agent_accuracy,
+            "rules": rules_data,
+            "coin_stats": coin_stats,
+            "coin_adjustments": coin_adjustments,
+            "config": config_info,
         }
 
     def _get_coin_prices(self, positions) -> dict[str, float]:

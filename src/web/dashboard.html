@@ -133,6 +133,34 @@ tr:hover td{background:var(--surface)}
 .lr-rule-text{font-size:12px;color:var(--text-s);flex:1}
 .lr-rule-type{font-size:9px;color:var(--text-m);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;flex-shrink:0}
 
+/* ===== CONFIG PAGE ===== */
+.cf-section{border-bottom:0.5px solid var(--border)}
+.cf-section-hdr{padding:14px 24px;font-size:11px;font-weight:600;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em;
+  background:var(--surface)}
+.cf-row{display:flex;justify-content:space-between;align-items:center;padding:10px 24px;border-bottom:0.5px solid var(--border)}
+.cf-row:last-child{border-bottom:none}
+.cf-label{font-size:12px;color:var(--text-s)}
+.cf-val{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.cf-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px}
+.cf-on{background:rgba(0,214,143,0.1);color:var(--green)}
+.cf-off{background:rgba(255,77,106,0.1);color:var(--red)}
+.cf-adj{color:var(--amber)}
+
+/* ===== COIN STATS PAGE ===== */
+.cn-card{padding:16px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:16px}
+.cn-card:hover{background:var(--surface)}
+.cn-symbol{font-size:14px;font-weight:700;width:60px;flex-shrink:0}
+.cn-bars{flex:1;display:flex;flex-direction:column;gap:4px}
+.cn-bar-row{display:flex;align-items:center;gap:8px}
+.cn-bar-label{font-size:10px;color:var(--text-m);width:24px;flex-shrink:0}
+.cn-bar-bg{flex:1;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
+.cn-bar-fill{height:100%;border-radius:2px;transition:width .5s var(--ease)}
+.cn-stats{display:flex;gap:16px;flex-shrink:0}
+.cn-stat{text-align:center}
+.cn-stat-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.cn-stat-label{font-size:9px;color:var(--text-m);margin-top:1px}
+.cn-adj{font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(245,158,11,0.1);color:var(--amber);flex-shrink:0}
+
 .empty{display:flex;align-items:center;justify-content:center;min-height:120px;font-size:12px;color:var(--text-m)}
 
 @media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}}
@@ -164,7 +192,11 @@ tr:hover td{background:var(--surface)}
 
     <div class="sb-nav-label">AI・学習</div>
     <div class="sb-nav-item" data-page="agents"><span class="sb-nav-icon">◈</span>エージェント精度</div>
+    <div class="sb-nav-item" data-page="coins"><span class="sb-nav-icon">◎</span>通貨別分析</div>
     <div class="sb-nav-item" data-page="learning"><span class="sb-nav-icon">◇</span>学習状況<span class="sb-nav-badge" id="navRl">0</span></div>
+
+    <div class="sb-nav-label">システム</div>
+    <div class="sb-nav-item" data-page="config"><span class="sb-nav-icon">⚙</span>設定・基準</div>
   </nav>
 
   <div class="sb-footer">
@@ -202,6 +234,45 @@ tr:hover td{background:var(--surface)}
     <!-- AGENTS -->
     <div class="page" id="pg-agents"><div id="fullAg"><div class="empty">分析データなし</div></div></div>
 
+    <!-- COINS -->
+    <div class="page" id="pg-coins"><div id="fullCoins"><div class="empty">通貨データなし</div></div></div>
+
+    <!-- CONFIG -->
+    <div class="page" id="pg-config">
+      <div class="cf-section">
+        <div class="cf-section-hdr">トレード設定</div>
+        <div class="cf-row"><span class="cf-label">モード</span><span class="cf-val" id="cfMode">—</span></div>
+        <div class="cf-row"><span class="cf-label">初期資金</span><span class="cf-val" id="cfBal">—</span></div>
+        <div class="cf-row"><span class="cf-label">1取引の最大リスク</span><span class="cf-val" id="cfRisk">—</span></div>
+        <div class="cf-row"><span class="cf-label">ストップロス（損切り）</span><span class="cf-val" id="cfSl">—</span></div>
+        <div class="cf-row"><span class="cf-label">テイクプロフィット（利確）</span><span class="cf-val" id="cfTp">—</span></div>
+        <div class="cf-row"><span class="cf-label">同時ポジション上限</span><span class="cf-val" id="cfMaxPos">—</span></div>
+        <div class="cf-row"><span class="cf-label">最大ドローダウン</span><span class="cf-val" id="cfMaxDd">—</span></div>
+        <div class="cf-row"><span class="cf-label">最大レバレッジ</span><span class="cf-val" id="cfLev">—</span></div>
+      </div>
+      <div class="cf-section">
+        <div class="cf-section-hdr">シグナル判定基準</div>
+        <div class="cf-row"><span class="cf-label">最低信頼度</span><span class="cf-val" id="cfConf">—</span></div>
+        <div class="cf-row"><span class="cf-label">同一コイン取引間隔</span><span class="cf-val" id="cfCool">—</span></div>
+        <div class="cf-row"><span class="cf-label">取引対象ペア</span><span class="cf-val" id="cfPairs">—</span></div>
+      </div>
+      <div class="cf-section">
+        <div class="cf-section-hdr">AI・リサーチ</div>
+        <div class="cf-row"><span class="cf-label">Claude AIエージェント</span><span id="cfAi"></span></div>
+        <div class="cf-row"><span class="cf-label">Grok X/Twitterリサーチ</span><span id="cfGrok"></span></div>
+      </div>
+      <div class="cf-section">
+        <div class="cf-section-hdr">適応型パラメータ（自動調整中）</div>
+        <div class="cf-row"><span class="cf-label">調整後リスク/取引</span><span class="cf-val cf-adj" id="cfAdRisk">—</span></div>
+        <div class="cf-row"><span class="cf-label">調整後最低信頼度</span><span class="cf-val cf-adj" id="cfAdConf">—</span></div>
+        <div class="cf-row"><span class="cf-label">スキップ時間帯（UTC）</span><span class="cf-val" id="cfSkip">—</span></div>
+      </div>
+      <div class="cf-section">
+        <div class="cf-section-hdr">アクティブルール</div>
+        <div id="cfRules"><div class="empty">ルールなし</div></div>
+      </div>
+    </div>
+
     <!-- LEARNING -->
     <div class="page" id="pg-learning">
       <div class="lr-grid">
@@ -223,7 +294,8 @@ const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,max
 const pc=v=>v>0?'positive':v<0?'negative':'';
 const pages={overview:['概要','ポートフォリオの全体像'],positions:['ポジション','オープンポジションの詳細'],
   history:['取引履歴','決済済みの取引一覧'],agents:['エージェント精度','AI分析チームの正確性'],
-  learning:['学習状況','ルール・パラメータ調整の記録']};
+  coins:['通貨別分析','コインごとの成績と信頼度調整'],
+  learning:['学習状況','ルール・パラメータ調整の記録'],config:['設定・基準','トレード判断の基準と現在の設定']};
 
 document.querySelectorAll('.sb-nav-item').forEach(el=>{
   el.addEventListener('click',()=>{
@@ -307,7 +379,65 @@ function update(d){
     const t=typeof l==='string'?l:(l.lesson||l.text||JSON.stringify(l));
     return`<div class="lr-item"><span class="lr-num">${i+1}.</span>${t}</div>`}).join(''):'<div class="empty">学習データなし</div>';
 
+  renderCoins(d.coin_stats,d.coin_adjustments);
+  renderConfig(d.config,d.rules);
+
   if(d.last_updated){$('ts').textContent=new Date(d.last_updated).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'更新'}
+}
+
+function renderCoins(stats,adj){
+  const el=$('fullCoins');
+  const entries=Object.entries(stats||{});
+  if(!entries.length){el.innerHTML='<div class="empty">通貨データなし（取引が始まると表示されます）</div>';return}
+  entries.sort((a,b)=>b[1].total-a[1].total);
+  el.innerHTML=entries.map(([coin,s])=>{
+    const wr=Math.round((s.win_rate||0)*100);
+    const barCls=wr>=60?'background:var(--green)':wr>=40?'background:var(--amber)':'background:var(--red)';
+    const adjVal=(adj||{})[coin];
+    const adjHtml=adjVal?`<span class="cn-adj">${adjVal>0?'+':''}${adjVal.toFixed(2)}</span>`:'';
+    return`<div class="cn-card">
+      <span class="cn-symbol">${coin}</span>
+      <div class="cn-bars">
+        <div class="cn-bar-row"><span class="cn-bar-label">勝率</span><div class="cn-bar-bg"><div class="cn-bar-fill" style="width:${wr}%;${barCls}"></div></div></div>
+      </div>
+      <div class="cn-stats">
+        <div class="cn-stat"><div class="cn-stat-val">${wr}%</div><div class="cn-stat-label">勝率</div></div>
+        <div class="cn-stat"><div class="cn-stat-val">${s.total}</div><div class="cn-stat-label">取引数</div></div>
+        <div class="cn-stat"><div class="cn-stat-val ${pc(s.total_pnl||0)}">${(s.total_pnl||0)>=0?'+':''}$${fmt(Math.abs(s.total_pnl||0))}</div><div class="cn-stat-label">損益</div></div>
+      </div>
+      ${adjHtml}
+    </div>`}).join('');
+}
+
+function renderConfig(cfg,rules){
+  if(!cfg)return;
+  const M={paper:'模擬取引',testnet:'テストネット',mainnet:'本番'};
+  $('cfMode').textContent=M[cfg.mode]||cfg.mode;
+  $('cfBal').textContent='$'+fmt(cfg.paper_balance||0);
+  $('cfRisk').textContent=cfg.risk_per_trade+'%';
+  $('cfSl').textContent=cfg.stop_loss+'%';
+  $('cfTp').textContent=cfg.take_profit+'%';
+  $('cfMaxPos').textContent=cfg.max_positions+'ポジション';
+  $('cfMaxDd').textContent=cfg.max_drawdown+'%（超えたらBot停止）';
+  $('cfLev').textContent=cfg.max_leverage+'倍';
+  $('cfConf').textContent=(cfg.min_confidence*100)+'%以上';
+  $('cfCool').textContent=cfg.cooldown_minutes+'分';
+  $('cfPairs').textContent=cfg.trading_pairs?.length?cfg.trading_pairs.join(', '):'全通貨（制限なし）';
+  $('cfAi').innerHTML=cfg.anthropic_enabled?'<span class="cf-badge cf-on">有効</span>':'<span class="cf-badge cf-off">無効</span>';
+  $('cfGrok').innerHTML=cfg.grok_enabled?'<span class="cf-badge cf-on">有効</span>':'<span class="cf-badge cf-off">無効</span>';
+  $('cfAdRisk').textContent=cfg.adaptive_risk?cfg.adaptive_risk.toFixed(1)+'%':'変更なし';
+  $('cfAdConf').textContent=cfg.adaptive_confidence?((cfg.adaptive_confidence*100).toFixed(0)+'%'):'変更なし';
+  $('cfSkip').textContent=cfg.skip_hours?.length?cfg.skip_hours.map(h=>h+':00').join(', '):'なし';
+
+  const rl=$('cfRules');
+  if(!rules?.length){rl.innerHTML='<div class="empty">ルールなし</div>';return}
+  rl.innerHTML=rules.map(r=>{
+    const S={ai_review:'AI振り返り',weekly_review:'週次レビュー',manual:'手動'};
+    const A={skip:'スキップ',reduce_confidence:'信頼度↓',reduce_size:'サイズ↓'};
+    return`<div class="lr-rule"><span class="lr-rule-dot"></span>
+    <span class="lr-rule-text">${r.description}</span>
+    <span class="lr-rule-type">${S[r.source]||r.source}</span>
+    <span class="lr-rule-type">${A[r.action]||r.action}</span></div>`}).join('');
 }
 
 async function fetchData(){try{const r=await fetch('/api/dashboard');if(r.ok)update(await r.json())}catch(e){console.warn(e)}}
