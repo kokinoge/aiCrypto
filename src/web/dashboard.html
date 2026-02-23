@@ -9,315 +9,310 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#08080d;--surface:#111118;--surface2:#16161f;--border:rgba(255,255,255,0.06);
-  --text:#e8e8ed;--text-s:#8b8b9e;--text-m:#55556a;
+  --bg:#08080d;--surface:#111118;--surface2:#18181f;--border:rgba(255,255,255,0.06);--border-active:rgba(255,255,255,0.12);
+  --text:#e8e8ed;--text-s:#8b8b9e;--text-m:#4a4a5e;
   --green:#00d68f;--red:#ff4d6a;--blue:#4d9fff;--purple:#8b5cf6;--amber:#f59e0b;
   --radius:8px;--ease:cubic-bezier(0.25,1,0.5,1);
 }
 html,body{height:100%;background:var(--bg);color:var(--text);
   font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5;
   -webkit-font-smoothing:antialiased;overflow:hidden}
-
-/* Layout: sidebar + main */
-.app{display:grid;height:100vh;grid-template-columns:240px 1fr}
-
-/* Sidebar */
-.sidebar{background:var(--surface);border-right:0.5px solid var(--border);display:flex;flex-direction:column;padding:0;overflow:hidden}
-.sidebar-header{padding:20px 20px 16px;border-bottom:0.5px solid var(--border)}
-.logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:-0.03em}
-.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0}
-.logo-dot.offline{background:var(--red);box-shadow:0 0 8px var(--red)}
-.mode-badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;
-  background:rgba(139,92,246,0.12);color:var(--purple);letter-spacing:0.04em;margin-top:8px}
-
-.sidebar-stats{padding:16px 20px;flex:1;overflow-y:auto}
-.sidebar-stat{margin-bottom:20px}
-.sidebar-stat-label{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
-.sidebar-stat-value{font-size:22px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
-.sidebar-stat-sub{font-size:11px;color:var(--text-m);margin-top:2px;font-variant-numeric:tabular-nums}
 .positive{color:var(--green)}.negative{color:var(--red)}
 
-.sidebar-divider{height:0.5px;background:var(--border);margin:4px 20px}
+.app{display:grid;height:100vh;grid-template-columns:260px 1fr}
 
-.sidebar-section-title{font-size:10px;font-weight:600;color:var(--text-m);text-transform:uppercase;
-  letter-spacing:0.06em;padding:12px 20px 8px}
-.sidebar-row{display:flex;justify-content:space-between;align-items:center;padding:6px 20px;font-size:12px}
-.sidebar-row-label{color:var(--text-s)}
-.sidebar-row-value{font-weight:600;font-variant-numeric:tabular-nums}
+/* ===== SIDEBAR ===== */
+.sidebar{background:var(--surface);border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden;user-select:none}
 
-.sidebar-footer{padding:12px 20px;border-top:0.5px solid var(--border);font-size:10px;color:var(--text-m);
+.sb-header{padding:20px 20px 16px}
+.sb-logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:-0.03em}
+.sb-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0;transition:all .3s}
+.sb-dot.off{background:var(--red);box-shadow:0 0 8px var(--red)}
+.sb-mode{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;
+  background:rgba(139,92,246,0.12);color:var(--purple);letter-spacing:0.04em;margin-top:8px}
+
+/* Equity block */
+.sb-equity{padding:16px 20px;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border)}
+.sb-eq-label{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em}
+.sb-eq-val{font-size:26px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;margin-top:4px}
+.sb-eq-row{display:flex;gap:16px;margin-top:8px}
+.sb-eq-item{font-size:11px;font-variant-numeric:tabular-nums}
+.sb-eq-item span{color:var(--text-m);margin-right:4px}
+
+/* Nav */
+.sb-nav{flex:1;padding:8px 0;overflow-y:auto}
+.sb-nav::-webkit-scrollbar{width:0}
+.sb-nav-label{font-size:9px;font-weight:600;color:var(--text-m);text-transform:uppercase;letter-spacing:0.1em;padding:12px 20px 6px}
+.sb-nav-item{display:flex;align-items:center;gap:10px;padding:8px 20px;font-size:12.5px;font-weight:500;
+  color:var(--text-s);cursor:pointer;transition:all .15s var(--ease);border-left:2px solid transparent;margin:1px 0}
+.sb-nav-item:hover{color:var(--text);background:rgba(255,255,255,0.02)}
+.sb-nav-item.active{color:var(--text);background:rgba(255,255,255,0.04);border-left-color:var(--purple)}
+.sb-nav-icon{width:16px;text-align:center;font-size:13px;flex-shrink:0;opacity:.6}
+.sb-nav-item.active .sb-nav-icon{opacity:1}
+.sb-nav-badge{margin-left:auto;font-size:10px;font-weight:600;color:var(--text-m);font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,0.04);padding:1px 6px;border-radius:3px}
+
+/* Footer */
+.sb-footer{padding:12px 20px;border-top:0.5px solid var(--border);font-size:10px;color:var(--text-m);
   display:flex;justify-content:space-between;align-items:center}
 
-/* Main content */
-.main{display:grid;grid-template-rows:1fr 1fr;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);overflow:hidden}
-.panel{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
-.panel-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
-  border-bottom:0.5px solid var(--border)}
-.panel-title{font-size:12px;font-weight:600;color:var(--text-s);letter-spacing:0.01em}
-.panel-badge{font-size:10px;color:var(--text-m);font-variant-numeric:tabular-nums}
-.panel-body{flex:1;overflow-y:auto;padding:0;min-height:0}
-.panel-body::-webkit-scrollbar{width:4px}
-.panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+/* ===== MAIN CONTENT ===== */
+.main{overflow:hidden;display:flex;flex-direction:column}
+.main-header{padding:16px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.main-title{font-size:16px;font-weight:700;letter-spacing:-0.02em}
+.main-subtitle{font-size:11px;color:var(--text-m);margin-top:2px}
+.main-actions{display:flex;gap:8px;align-items:center}
+.main-body{flex:1;overflow-y:auto;padding:0}
+.main-body::-webkit-scrollbar{width:5px}
+.main-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-/* Positions table */
+/* Page: hidden by default */
+.page{display:none}
+.page.active{display:block}
+
+/* ===== OVERVIEW PAGE ===== */
+.ov-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:0.5px solid var(--border)}
+.ov-stat{background:var(--bg);padding:20px 24px}
+.ov-stat-label{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.06em}
+.ov-stat-val{font-size:20px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin-top:6px}
+.ov-stat-sub{font-size:11px;color:var(--text-m);margin-top:4px;font-variant-numeric:tabular-nums}
+.ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex:1}
+.ov-section{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.ov-section-hdr{padding:14px 24px;border-bottom:0.5px solid var(--border);font-size:12px;font-weight:600;color:var(--text-s);
+  display:flex;justify-content:space-between;align-items:center}
+.ov-section-body{flex:1;overflow-y:auto;min-height:0}
+.ov-section-body::-webkit-scrollbar{width:4px}
+.ov-section-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ===== TABLE (shared) ===== */
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th{font-size:10px;font-weight:500;color:var(--text-m);text-transform:uppercase;letter-spacing:0.05em;
-  text-align:left;padding:8px 12px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg)}
-td{padding:10px 12px;font-size:12px;border-bottom:0.5px solid var(--border)}
+  text-align:left;padding:8px 16px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--bg)}
+td{padding:10px 16px;font-size:12px;border-bottom:0.5px solid var(--border)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--surface)}
 .dir-long{color:var(--green);font-weight:600}.dir-short{color:var(--red);font-weight:600}
 
-/* Trade list */
-.trade-item{padding:10px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
-.trade-item:last-child{border-bottom:none}
-.trade-item:hover{background:var(--surface)}
-.trade-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:700;flex-shrink:0}
-.trade-icon.win{background:rgba(0,214,143,0.1);color:var(--green)}
-.trade-icon.loss{background:rgba(255,77,106,0.1);color:var(--red)}
-.trade-info{flex:1;min-width:0}
-.trade-coin{font-weight:600;font-size:12px}
-.trade-meta{font-size:10px;color:var(--text-m);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.trade-right{text-align:right;flex-shrink:0}
-.trade-pnl{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-.trade-date{font-size:10px;color:var(--text-m);margin-top:1px}
+/* ===== TRADE LIST ===== */
+.tr-item{padding:12px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
+.tr-item:last-child{border-bottom:none}
+.tr-item:hover{background:var(--surface)}
+.tr-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.tr-icon.w{background:rgba(0,214,143,0.08);color:var(--green)}
+.tr-icon.l{background:rgba(255,77,106,0.08);color:var(--red)}
+.tr-info{flex:1;min-width:0}
+.tr-coin{font-weight:600;font-size:13px}
+.tr-meta{font-size:10px;color:var(--text-m);margin-top:2px}
+.tr-right{text-align:right;flex-shrink:0}
+.tr-pnl{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.tr-date{font-size:10px;color:var(--text-m);margin-top:2px}
 
-/* Agent accuracy */
-.agent-row{display:flex;align-items:center;gap:10px;padding:8px 20px}
-.agent-name{font-size:11px;font-weight:500;width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-s)}
-.agent-bar-bg{flex:1;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
-.agent-bar{height:100%;border-radius:2px;transition:width .5s var(--ease)}
-.agent-bar.high{background:var(--green)}.agent-bar.mid{background:var(--amber)}.agent-bar.low{background:var(--red)}.agent-bar.default{background:var(--purple)}
-.agent-pct{font-size:11px;font-variant-numeric:tabular-nums;color:var(--text-s);width:36px;text-align:right;flex-shrink:0}
+/* ===== AGENTS ===== */
+.ag-card{padding:20px 24px;border-bottom:0.5px solid var(--border)}
+.ag-card:last-child{border-bottom:none}
+.ag-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ag-name{font-size:13px;font-weight:600}
+.ag-pct{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.ag-bar-bg{width:100%;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
+.ag-bar{height:100%;border-radius:2px;transition:width .5s var(--ease)}
+.ag-bar.h{background:var(--green)}.ag-bar.m{background:var(--amber)}.ag-bar.lo{background:var(--red)}.ag-bar.d{background:var(--purple)}
+.ag-sub{font-size:10px;color:var(--text-m);margin-top:6px}
 
-/* Lessons */
-.lesson-item{padding:10px 20px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text-s);line-height:1.5}
-.lesson-item:last-child{border-bottom:none}
-.lesson-item:hover{background:var(--surface)}
-.lesson-num{display:inline-block;width:16px;color:var(--text-m);font-variant-numeric:tabular-nums}
+/* ===== LEARNING ===== */
+.lr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-bottom:0.5px solid var(--border)}
+.lr-stat{background:var(--bg);padding:20px 24px;text-align:center}
+.lr-stat-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.lr-stat-label{font-size:10px;color:var(--text-m);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em}
+.lr-item{padding:12px 24px;border-bottom:0.5px solid var(--border);font-size:12px;color:var(--text-s);line-height:1.6}
+.lr-item:last-child{border-bottom:none}
+.lr-item:hover{background:var(--surface)}
+.lr-num{color:var(--text-m);font-variant-numeric:tabular-nums;margin-right:6px}
+.lr-rule{padding:12px 24px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:12px}
+.lr-rule:last-child{border-bottom:none}
+.lr-rule-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0}
+.lr-rule-text{font-size:12px;color:var(--text-s);flex:1}
+.lr-rule-type{font-size:9px;color:var(--text-m);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;flex-shrink:0}
 
-/* Empty state */
-.empty{display:flex;align-items:center;justify-content:center;height:100%;
-  font-size:12px;color:var(--text-m);padding:24px}
+.empty{display:flex;align-items:center;justify-content:center;min-height:120px;font-size:12px;color:var(--text-m)}
 
-@media(max-width:768px){
-  .app{grid-template-columns:1fr}
-  .sidebar{display:none}
-  .main{grid-template-rows:repeat(4,1fr);grid-template-columns:1fr}
-}
+@media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}}
 </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo"><span class="logo-dot" id="statusDot"></span>Smart Money Bot</div>
-      <div class="mode-badge" id="modeBadge">模擬取引</div>
+<aside class="sidebar">
+  <div class="sb-header">
+    <div class="sb-logo"><span class="sb-dot" id="dot"></span>Smart Money Bot</div>
+    <div class="sb-mode" id="mode">模擬取引</div>
+  </div>
+
+  <div class="sb-equity">
+    <div class="sb-eq-label">総資産</div>
+    <div class="sb-eq-val" id="eq">$0.00</div>
+    <div class="sb-eq-row">
+      <div class="sb-eq-item"><span>損益</span><span id="pnl" class="positive">+$0.00</span></div>
+      <div class="sb-eq-item"><span>利率</span><span id="ret" class="positive">+0.0%</span></div>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-nav-label">メニュー</div>
+    <div class="sb-nav-item active" data-page="overview"><span class="sb-nav-icon">◉</span>概要<span class="sb-nav-badge" id="navWr">—</span></div>
+    <div class="sb-nav-item" data-page="positions"><span class="sb-nav-icon">◫</span>ポジション<span class="sb-nav-badge" id="navPos">0</span></div>
+    <div class="sb-nav-item" data-page="history"><span class="sb-nav-icon">↕</span>取引履歴<span class="sb-nav-badge" id="navTr">0</span></div>
+
+    <div class="sb-nav-label">AI・学習</div>
+    <div class="sb-nav-item" data-page="agents"><span class="sb-nav-icon">◈</span>エージェント精度</div>
+    <div class="sb-nav-item" data-page="learning"><span class="sb-nav-icon">◇</span>学習状況<span class="sb-nav-badge" id="navRl">0</span></div>
+  </nav>
+
+  <div class="sb-footer">
+    <span id="ts">更新中...</span>
+    <span id="cd">30s</span>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="main-header">
+    <div><div class="main-title" id="pageTitle">概要</div><div class="main-subtitle" id="pageSub">ポートフォリオの全体像</div></div>
+  </div>
+  <div class="main-body">
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="pg-overview">
+      <div class="ov-stats">
+        <div class="ov-stat"><div class="ov-stat-label">資産</div><div class="ov-stat-val" id="ovEq">—</div><div class="ov-stat-sub" id="ovInit"></div></div>
+        <div class="ov-stat"><div class="ov-stat-label">総損益</div><div class="ov-stat-val" id="ovPnl">—</div></div>
+        <div class="ov-stat"><div class="ov-stat-label">リターン</div><div class="ov-stat-val" id="ovRet">—</div></div>
+        <div class="ov-stat"><div class="ov-stat-label">勝率</div><div class="ov-stat-val" id="ovWr">—</div><div class="ov-stat-sub" id="ovWl"></div></div>
+      </div>
+      <div class="ov-grid">
+        <div class="ov-section"><div class="ov-section-hdr">最新ポジション</div><div class="ov-section-body" id="ovPos"><div class="empty">ポジションなし</div></div></div>
+        <div class="ov-section"><div class="ov-section-hdr">直近の取引</div><div class="ov-section-body" id="ovTr"><div class="empty">取引なし</div></div></div>
+      </div>
     </div>
 
-    <div class="sidebar-stats">
-      <div class="sidebar-stat">
-        <div class="sidebar-stat-label">資産</div>
-        <div class="sidebar-stat-value" id="equity">—</div>
-        <div class="sidebar-stat-sub" id="initialBal"></div>
-      </div>
-      <div class="sidebar-stat">
-        <div class="sidebar-stat-label">総損益</div>
-        <div class="sidebar-stat-value" id="pnl">—</div>
-      </div>
-      <div class="sidebar-stat">
-        <div class="sidebar-stat-label">リターン</div>
-        <div class="sidebar-stat-value" id="returnPct">—</div>
-      </div>
-      <div class="sidebar-stat">
-        <div class="sidebar-stat-label">勝率</div>
-        <div class="sidebar-stat-value" id="winRate">—</div>
-        <div class="sidebar-stat-sub" id="winLoss"></div>
-      </div>
+    <!-- POSITIONS -->
+    <div class="page" id="pg-positions"><div id="fullPos"><div class="empty">ポジションなし</div></div></div>
 
-      <div class="sidebar-divider"></div>
-      <div class="sidebar-section-title">学習状況</div>
-      <div class="sidebar-row"><span class="sidebar-row-label">ルール</span><span class="sidebar-row-value" id="ruleCount">0</span></div>
-      <div class="sidebar-row"><span class="sidebar-row-label">連続記録</span><span class="sidebar-row-value" id="streak">—</span></div>
-      <div class="sidebar-row"><span class="sidebar-row-label">サイズ倍率</span><span class="sidebar-row-value" id="sizeMod">1.0x</span></div>
-      <div class="sidebar-row"><span class="sidebar-row-label">現金</span><span class="sidebar-row-value" id="cash">—</span></div>
-    </div>
+    <!-- HISTORY -->
+    <div class="page" id="pg-history"><div id="fullTr"><div class="empty">取引履歴なし</div></div></div>
 
-    <div class="sidebar-footer">
-      <span id="lastUpdated">更新中...</span>
-      <span id="countdown"></span>
-    </div>
-  </aside>
+    <!-- AGENTS -->
+    <div class="page" id="pg-agents"><div id="fullAg"><div class="empty">分析データなし</div></div></div>
 
-  <!-- Main 2x2 grid -->
-  <div class="main">
-
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">オープンポジション</span>
-        <span class="panel-badge" id="posCount">0件</span>
+    <!-- LEARNING -->
+    <div class="page" id="pg-learning">
+      <div class="lr-grid">
+        <div class="lr-stat"><div class="lr-stat-val" id="lrRules">0</div><div class="lr-stat-label">アクティブルール</div></div>
+        <div class="lr-stat"><div class="lr-stat-val" id="lrStreak">—</div><div class="lr-stat-label">連続記録</div></div>
+        <div class="lr-stat"><div class="lr-stat-val" id="lrMod">1.0x</div><div class="lr-stat-label">サイズ倍率</div></div>
       </div>
-      <div class="panel-body" id="positions"><div class="empty">ポジションなし</div></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">取引履歴</span>
-        <span class="panel-badge" id="tradeCount">0件</span>
-      </div>
-      <div class="panel-body" id="trades"><div class="empty">取引履歴なし</div></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">AI エージェント精度</span>
-        <span class="panel-badge" id="agentCount"></span>
-      </div>
-      <div class="panel-body" id="agents"><div class="empty">分析データなし</div></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">学習ログ</span>
-      </div>
-      <div class="panel-body" id="lessons"><div class="empty">学習データなし</div></div>
+      <div id="lrLessons"></div>
     </div>
 
   </div>
 </div>
+</div>
 
 <script>
 const $=id=>document.getElementById(id);
-const INTERVAL=30;
-let timer=INTERVAL;
+const INT=30;let tm=INT;
+const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pc=v=>v>0?'positive':v<0?'negative':'';
+const pages={overview:['概要','ポートフォリオの全体像'],positions:['ポジション','オープンポジションの詳細'],
+  history:['取引履歴','決済済みの取引一覧'],agents:['エージェント精度','AI分析チームの正確性'],
+  learning:['学習状況','ルール・パラメータ調整の記録']};
 
-function fmt(n,d=2){return Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
-function pc(v){return v>0?'positive':v<0?'negative':''}
+document.querySelectorAll('.sb-nav-item').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.sb-nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+    const p=el.dataset.page;
+    document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+    $('pg-'+p).classList.add('active');
+    $('pageTitle').textContent=pages[p][0];
+    $('pageSub').textContent=pages[p][1];
+  });
+});
 
-function renderPositions(positions){
-  const el=$('positions');
-  $('posCount').textContent=(positions?.length||0)+'件';
-  if(!positions||!positions.length){el.innerHTML='<div class="empty">ポジションなし</div>';return}
-  const rows=positions.map(p=>{
-    const dc=p.side==='long'?'dir-long':'dir-short';
-    const dl=p.side==='long'?'ロング':'ショート';
+function posTable(positions,id){
+  const el=$(id);if(!positions?.length){el.innerHTML='<div class="empty">ポジションなし</div>';return}
+  el.innerHTML='<table><thead><tr><th>コイン</th><th>方向</th><th>参入価格</th><th>現在価格</th><th>数量</th><th>損益</th><th>損益%</th></tr></thead><tbody>'+
+  positions.map(p=>{
     const pnl=p.unrealized_pnl||0;
-    const pnlPct=p.entry_price?(((p.current_price-p.entry_price)/p.entry_price)*100*(p.side==='short'?-1:1)):0;
-    return`<tr><td style="font-weight:600">${p.coin||'—'}</td><td class="${dc}">${dl}</td>
-    <td>$${fmt(p.entry_price)}</td><td>$${fmt(p.current_price||p.entry_price)}</td>
+    const pp=p.entry_price?((p.current_price-p.entry_price)/p.entry_price*100*(p.side==='short'?-1:1)):0;
+    return`<tr><td style="font-weight:600">${p.coin}</td><td class="${p.side==='long'?'dir-long':'dir-short'}">${p.side==='long'?'ロング':'ショート'}</td>
+    <td>$${fmt(p.entry_price)}</td><td>$${fmt(p.current_price||p.entry_price)}</td><td>${fmt(p.size,4)}</td>
     <td class="${pc(pnl)}" style="font-weight:600">${pnl>=0?'+':''}$${fmt(pnl)}</td>
-    <td class="${pc(pnlPct)}">${pnlPct>=0?'+':''}${fmt(pnlPct,1)}%</td></tr>`
-  }).join('');
-  el.innerHTML=`<table><thead><tr><th>コイン</th><th>方向</th><th>参入</th><th>現在</th><th>損益</th><th>%</th></tr></thead><tbody>${rows}</tbody></table>`
+    <td class="${pc(pp)}">${pp>=0?'+':''}${fmt(pp,1)}%</td></tr>`}).join('')+'</tbody></table>';
 }
 
-function renderTrades(trades){
-  const el=$('trades');
-  const t=trades||[];
-  $('tradeCount').textContent=t.length+'件';
+function trList(trades,id,max=20){
+  const el=$(id);const t=(trades||[]).slice(-max).reverse();
   if(!t.length){el.innerHTML='<div class="empty">取引履歴なし</div>';return}
-  const reasons={'STOP LOSS':'損切り','TAKE PROFIT':'利確','EMERGENCY CLOSE':'緊急決済'};
-  el.innerHTML=t.slice(-10).reverse().map(tr=>{
-    const pnl=tr.pnl||0;
-    const icon=pnl>=0?'win':'loss';
-    const arrow=pnl>=0?'+':'';
-    const side=tr.side==='long'?'ロング':'ショート';
-    const reason=reasons[tr.reason]||tr.reason||'';
+  const R={'STOP LOSS':'損切り','TAKE PROFIT':'利確','EMERGENCY CLOSE':'緊急決済'};
+  el.innerHTML=t.map(tr=>{
+    const pnl=tr.pnl||0;const s=tr.side==='long'?'ロング':'ショート';
     const dt=tr.closed_at?new Date(tr.closed_at*1000).toLocaleDateString('ja-JP',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-    return`<div class="trade-item">
-      <div class="trade-icon ${icon}">${pnl>=0?'↑':'↓'}</div>
-      <div class="trade-info"><div class="trade-coin">${tr.coin||'—'}</div><div class="trade-meta">${side} · ${reason}</div></div>
-      <div class="trade-right"><div class="trade-pnl ${pc(pnl)}">${arrow}$${fmt(Math.abs(pnl))}</div><div class="trade-date">${dt}</div></div>
-    </div>`
-  }).join('')
+    return`<div class="tr-item"><div class="tr-icon ${pnl>=0?'w':'l'}">${pnl>=0?'↑':'↓'}</div>
+    <div class="tr-info"><div class="tr-coin">${tr.coin}</div><div class="tr-meta">${s} · ${R[tr.reason]||tr.reason||''} · $${fmt(tr.entry||0)} → $${fmt(tr.exit||0)}</div></div>
+    <div class="tr-right"><div class="tr-pnl ${pc(pnl)}">${pnl>=0?'+':''}$${fmt(Math.abs(pnl))}</div><div class="tr-date">${dt}</div></div></div>`}).join('');
 }
 
-function renderAgents(acc){
-  const el=$('agents');
-  const entries=Object.entries(acc||{});
-  $('agentCount').textContent=entries.length?entries.length+'体':'';
-  if(!entries.length){el.innerHTML='<div class="empty">分析データなし</div>';return}
-  const names={'MarketAnalyst':'市場分析','SignalValidator':'シグナル検証','RiskManager':'リスク管理','Contrarian':'反対意見','Strategist':'司令塔'};
-  el.innerHTML=entries.map(([name,val])=>{
-    const pct=typeof val==='number'?val:(val.accuracy||0);
-    const p=Math.round(pct*(pct<=1?100:1));
-    const cls=p>=70?'high':p>=50?'mid':p>=30?'low':'default';
-    const label=names[name]||name;
-    return`<div class="agent-row"><span class="agent-name" title="${name}">${label}</span>
-    <div class="agent-bar-bg"><div class="agent-bar ${cls}" style="width:${p}%"></div></div>
-    <span class="agent-pct">${p}%</span></div>`
-  }).join('')
-}
-
-function renderLessons(lessons){
-  const el=$('lessons');
-  const l=lessons||[];
-  if(!l.length){el.innerHTML='<div class="empty">学習データなし</div>';return}
-  el.innerHTML=l.map((item,i)=>{
-    const text=typeof item==='string'?item:(item.lesson||item.text||JSON.stringify(item));
-    return`<div class="lesson-item"><span class="lesson-num">${i+1}.</span>${text}</div>`
-  }).join('')
+function agList(acc){
+  const el=$('fullAg');const e=Object.entries(acc||{});
+  if(!e.length){el.innerHTML='<div class="empty">分析データなし</div>';return}
+  const N={'MarketAnalyst':'市場分析','SignalValidator':'シグナル検証','RiskManager':'リスク管理','Contrarian':'反対意見','Strategist':'司令塔'};
+  el.innerHTML=e.map(([n,v])=>{
+    const p=typeof v==='number'?Math.round(v*100):Math.round((v.accuracy||0)*(v.accuracy<=1?100:1));
+    const c=p>=70?'h':p>=50?'m':p>=30?'lo':'d';
+    const tot=typeof v==='object'?(v.total||'—'):'—';const cor=typeof v==='object'?(v.correct||'—'):'—';
+    return`<div class="ag-card"><div class="ag-top"><span class="ag-name">${N[n]||n}</span><span class="ag-pct ${pc(p-50)}">${p}%</span></div>
+    <div class="ag-bar-bg"><div class="ag-bar ${c}" style="width:${p}%"></div></div>
+    <div class="ag-sub">分析: ${tot}件 / 正解: ${cor}件</div></div>`}).join('');
 }
 
 function update(d){
-  $('statusDot').className='logo-dot'+(d.status==='running'?'':' offline');
-  const modes={paper:'模擬取引',testnet:'テストネット',mainnet:'本番'};
-  $('modeBadge').textContent=modes[d.mode]||d.mode;
+  $('dot').className='sb-dot'+(d.status==='running'?'':' off');
+  const M={paper:'模擬取引',testnet:'テストネット',mainnet:'本番'};
+  $('mode').textContent=M[d.mode]||d.mode;
+  $('eq').textContent='$'+fmt(d.equity);
+  const pnl=d.total_pnl||0;const ret=d.return_pct||0;
+  $('pnl').textContent=(pnl>=0?'+$':'-$')+fmt(Math.abs(pnl));$('pnl').className=pc(pnl);
+  $('ret').textContent=(ret>=0?'+':'')+fmt(ret,1)+'%';$('ret').className=pc(ret);
 
-  $('equity').textContent='$'+fmt(d.equity);
-  $('equity').className='sidebar-stat-value';
-  $('initialBal').textContent='初期: $'+fmt(d.initial_balance);
-  $('cash').textContent='$'+fmt(d.cash);
+  $('ovEq').textContent='$'+fmt(d.equity);$('ovInit').textContent='初期: $'+fmt(d.initial_balance);
+  $('ovPnl').textContent=(pnl>=0?'+$':'-$')+fmt(Math.abs(pnl));$('ovPnl').className='ov-stat-val '+pc(pnl);
+  $('ovRet').textContent=(ret>=0?'+':'')+fmt(ret,1)+'%';$('ovRet').className='ov-stat-val '+pc(ret);
+  const wr=d.win_rate||{};const wrv=Math.round((wr.win_rate||0)*100);
+  $('ovWr').textContent=wrv+'%';$('ovWl').textContent=(wr.wins||0)+'勝 / '+(wr.losses||0)+'敗';
+  $('navWr').textContent=wrv+'%';
+  $('navPos').textContent=(d.open_positions?.length||0);
+  $('navTr').textContent=(d.closed_trades?.length||0);
+  $('navRl').textContent=d.active_rules||0;
 
-  const pnl=d.total_pnl||0;
-  $('pnl').textContent=(pnl>=0?'+$':'-$')+fmt(Math.abs(pnl));
-  $('pnl').className='sidebar-stat-value '+pc(pnl);
+  posTable(d.open_positions,'ovPos');posTable(d.open_positions,'fullPos');
+  trList(d.closed_trades,'ovTr',5);trList(d.closed_trades,'fullTr',20);
+  agList(d.agent_accuracy);
 
-  const ret=d.return_pct||0;
-  $('returnPct').textContent=(ret>=0?'+':'')+fmt(ret,1)+'%';
-  $('returnPct').className='sidebar-stat-value '+pc(ret);
-
-  const wr=d.win_rate||{};
-  const wrVal=(wr.win_rate||0);
-  $('winRate').textContent=(wrVal*100).toFixed(0)+'%';
-  $('winLoss').textContent=(wr.wins||0)+'勝 / '+(wr.losses||0)+'敗';
-
-  $('ruleCount').textContent=d.active_rules||0;
+  $('lrRules').textContent=d.active_rules||0;
   const [st,sn]=d.streak||['none',0];
-  $('streak').textContent=st==='win'?sn+'勝':st==='loss'?sn+'敗':'—';
-  $('streak').className='sidebar-row-value '+(st==='win'?'positive':st==='loss'?'negative':'');
-  $('sizeMod').textContent=(d.position_size_modifier||1).toFixed(1)+'x';
+  $('lrStreak').textContent=st==='win'?sn+'勝':st==='loss'?sn+'敗':'—';
+  $('lrStreak').className='lr-stat-val '+(st==='win'?'positive':st==='loss'?'negative':'');
+  $('lrMod').textContent=(d.position_size_modifier||1).toFixed(1)+'x';
+  const ls=d.lessons||[];
+  $('lrLessons').innerHTML=ls.length?ls.map((l,i)=>{
+    const t=typeof l==='string'?l:(l.lesson||l.text||JSON.stringify(l));
+    return`<div class="lr-item"><span class="lr-num">${i+1}.</span>${t}</div>`}).join(''):'<div class="empty">学習データなし</div>';
 
-  renderPositions(d.open_positions);
-  renderTrades(d.closed_trades);
-  renderAgents(d.agent_accuracy);
-  renderLessons(d.lessons);
-
-  if(d.last_updated){
-    const dt=new Date(d.last_updated);
-    $('lastUpdated').textContent=dt.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'更新';
-  }
+  if(d.last_updated){$('ts').textContent=new Date(d.last_updated).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'更新'}
 }
 
-async function fetchData(){
-  try{
-    const r=await fetch('/api/dashboard');
-    if(!r.ok)throw new Error(r.status);
-    update(await r.json());
-  }catch(e){console.warn('Fetch:',e)}
-}
-
-function tick(){
-  timer--;
-  if(timer<=0){timer=INTERVAL;fetchData()}
-  $('countdown').textContent=timer+'s';
-}
-
-fetchData();
-setInterval(tick,1000);
+async function fetchData(){try{const r=await fetch('/api/dashboard');if(r.ok)update(await r.json())}catch(e){console.warn(e)}}
+function tick(){tm--;if(tm<=0){tm=INT;fetchData()}$('cd').textContent=tm+'s'}
+fetchData();setInterval(tick,1000);
 </script>
 </body>
 </html>
