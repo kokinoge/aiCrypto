@@ -381,6 +381,50 @@ class TradingBot:
             return self._paper_trader._portfolio.closed_trades
         return []
 
+    def _get_dashboard_data(self) -> dict:
+        summary = self._get_summary()
+        win_rate = self._journal.get_win_rate()
+        closed = self._get_closed_trades()
+        active_rules = self._rulebook.get_active_rules()
+        streak = self._journal.get_streak()
+        overrides = self._adaptive.get_overrides()
+        agent_accuracy = self._journal.get_agent_accuracy()
+        lessons = self._journal.get_lessons(limit=5)
+
+        positions_data = []
+        for pos in summary.get("positions", []):
+            try:
+                market = self._hl_client.get_market_info(pos.coin)
+                current_price = market.mark_price
+            except Exception:
+                current_price = pos.entry_price
+            positions_data.append({
+                "coin": pos.coin, "side": pos.side,
+                "entry_price": pos.entry_price,
+                "current_price": current_price,
+                "size": pos.size,
+                "unrealized_pnl": pos.unrealized_pnl,
+                "leverage": pos.leverage,
+            })
+
+        return {
+            "status": "running",
+            "mode": self._config.mode,
+            "equity": summary["equity"],
+            "cash": summary["cash"],
+            "initial_balance": summary["initial_balance"],
+            "total_pnl": summary["total_pnl"],
+            "return_pct": summary["return_pct"],
+            "open_positions": positions_data,
+            "closed_trades": closed[-20:],
+            "win_rate": win_rate,
+            "active_rules": len(active_rules),
+            "streak": list(streak),
+            "position_size_modifier": overrides.position_size_modifier,
+            "lessons": [l.get("lesson", str(l)) if isinstance(l, dict) else str(l) for l in lessons],
+            "agent_accuracy": agent_accuracy,
+        }
+
     def _get_coin_prices(self, positions) -> dict[str, float]:
         prices: dict[str, float] = {}
         for pos in positions:
@@ -484,6 +528,7 @@ class TradingBot:
                 config=self._config,
                 signal_engine=self._signal_engine,
                 on_signal=self._handle_signal,
+                get_dashboard_data=self._get_dashboard_data,
             )
             await self._webhook.start()
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Awaitable, Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Awaitable, Callable
 
 from aiohttp import web
 
@@ -13,15 +15,18 @@ from src.signals.engine import Signal, SignalEngine
 logger = logging.getLogger("trading_bot")
 
 VALID_SIDES = {"long", "short"}
+DASHBOARD_HTML = Path(__file__).parent.parent / "web" / "dashboard.html"
 
 
 class WebhookServer:
-    """HTTP webhook server that accepts trading signals via POST requests.
+    """HTTP webhook server with trading dashboard.
 
     Endpoints:
-        POST /webhook/nansen  — Nansen Smart Alert webhook payload
-        POST /webhook/custom  — Manual signal: {"coin","side","confidence","message"}
-        GET  /health          — Bot health check
+        GET  /            — Trading dashboard UI
+        GET  /health      — Bot health check
+        GET  /api/dashboard — Dashboard data API
+        POST /webhook/nansen  — Nansen Smart Alert webhook
+        POST /webhook/custom  — Manual signal
     """
 
     def __init__(
@@ -29,15 +34,19 @@ class WebhookServer:
         config: BotConfig,
         signal_engine: SignalEngine,
         on_signal: Callable[[Signal], Awaitable[None]],
+        get_dashboard_data: Callable[[], dict[str, Any]] | None = None,
     ):
         self._config = config
         self._engine = signal_engine
         self._on_signal = on_signal
+        self._get_dashboard_data = get_dashboard_data
         self._start_time = time.time()
         self._signals_received = 0
 
         self._app = web.Application()
+        self._app.router.add_get("/", self._handle_dashboard)
         self._app.router.add_get("/health", self._handle_health)
+        self._app.router.add_get("/api/dashboard", self._handle_dashboard_api)
         self._app.router.add_post("/webhook/nansen", self._handle_nansen)
         self._app.router.add_post("/webhook/custom", self._handle_custom)
         self._runner: web.AppRunner | None = None
@@ -59,6 +68,14 @@ class WebhookServer:
     # GET /health
     # ------------------------------------------------------------------
 
+    async def _handle_dashboard(self, request: web.Request) -> web.Response:
+        if DASHBOARD_HTML.exists():
+            return web.Response(
+                text=DASHBOARD_HTML.read_text(encoding="utf-8"),
+                content_type="text/html",
+            )
+        return web.Response(text="Dashboard not found", status=404)
+
     async def _handle_health(self, request: web.Request) -> web.Response:
         uptime = int(time.time() - self._start_time)
         return web.json_response({
@@ -66,6 +83,27 @@ class WebhookServer:
             "mode": self._config.mode,
             "uptime_seconds": uptime,
             "signals_received": self._signals_received,
+        })
+
+    async def _handle_dashboard_api(self, request: web.Request) -> web.Response:
+        if self._get_dashboard_data:
+            try:
+                data = self._get_dashboard_data()
+                data["last_updated"] = datetime.now(timezone.utc).isoformat()
+                return web.json_response(data)
+            except Exception:
+                logger.exception("Error generating dashboard data")
+        return web.json_response({
+            "status": "running",
+            "mode": self._config.mode,
+            "equity": 0, "cash": 0, "initial_balance": 0,
+            "total_pnl": 0, "return_pct": 0,
+            "open_positions": [], "closed_trades": [],
+            "win_rate": {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0},
+            "active_rules": 0, "streak": ["none", 0],
+            "position_size_modifier": 1.0, "lessons": [],
+            "agent_accuracy": {},
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         })
 
     # ------------------------------------------------------------------
