@@ -95,17 +95,29 @@ class NansenDiscordMonitor:
             len(token), token[:5] + "...", "..." + token[-5:],
         )
 
-        for attempt in range(5):
+        max_retries = 10
+        for attempt in range(max_retries):
             try:
                 await self._client.start(token)
                 return
+            except discord.LoginFailure as e:
+                logger.error(
+                    "Discord token is INVALID (attempt %d/%d): %s — "
+                    "Go to https://discord.com/developers/applications to reset your bot token, "
+                    "then update DISCORD_BOT_TOKEN in Railway Variables",
+                    attempt + 1, max_retries, e,
+                )
+                wait = min(60 * (attempt + 1), 300)
+                if attempt == max_retries - 1:
+                    raise
+                await asyncio.sleep(wait)
             except Exception as e:
                 wait = min(30 * (attempt + 1), 120)
                 logger.error(
-                    "Discord login failed (attempt %d/5): %s — retrying in %ds",
-                    attempt + 1, e, wait,
+                    "Discord connection failed (attempt %d/%d): %s — retrying in %ds",
+                    attempt + 1, max_retries, e, wait,
                 )
-                if attempt == 4:
+                if attempt == max_retries - 1:
                     raise
                 await asyncio.sleep(wait)
 

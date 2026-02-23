@@ -102,6 +102,8 @@ class AgentTeam:
             for p in account_state.positions
         ]
 
+        oi_value = market.open_interest * market.mark_price
+
         try:
             analyst, validator, risk_mgr, contrarian = await asyncio.gather(
                 self._run_agent(
@@ -112,8 +114,8 @@ class AgentTeam:
                         current_price=market.mark_price,
                         price_change_1h=0.0, price_change_24h=0.0,
                         funding_rate=market.funding_rate,
-                        open_interest=market.open_interest,
-                        volume_24h=0.0,
+                        open_interest=oi_value,
+                        volume_24h=oi_value * 0.5,
                         learning_journal=journal_context,
                     ),
                 ),
@@ -153,8 +155,8 @@ class AgentTeam:
                         current_price=market.mark_price,
                         price_change_1h=0.0, price_change_24h=0.0,
                         funding_rate=market.funding_rate,
-                        open_interest=market.open_interest,
-                        volume_24h=0.0,
+                        open_interest=oi_value,
+                        volume_24h=oi_value * 0.5,
                         signal_confidence=signal.confidence,
                         open_positions=positions_data,
                         learning_journal=journal_context,
