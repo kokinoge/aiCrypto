@@ -10,6 +10,7 @@ import discord
 
 from src.agents.adaptive import AdaptiveParams
 from src.agents.journal import TradeJournal
+from src.agents.researcher import GrokResearcher, create_researcher
 from src.agents.rulebook import StrategyRulebook
 from src.agents.team import AgentTeam
 from src.config import load_config
@@ -47,6 +48,7 @@ class TradingBot:
         self._agent_team = AgentTeam(self._config, self._hl_client, self._risk_manager, self._journal)
         self._adaptive = AdaptiveParams(self._journal, self._config.risk, self._config.signals)
         self._rulebook = StrategyRulebook()
+        self._researcher = create_researcher(self._config.xai_api_key)
 
         self._signal_engine = SignalEngine()
         self._notifier: DiscordNotifier | None = None
@@ -92,6 +94,44 @@ class TradingBot:
         if sig.confidence < self._config.signals.min_confidence:
             logger.info("Signal confidence %.2f below threshold after adjustments, skipping", sig.confidence)
             return
+
+        # --- Grok Research: real-time sentiment & validation ---
+        if self._researcher:
+            try:
+                validation = await self._researcher.validate_trade_idea(
+                    coin=sig.coin, side=sig.side,
+                    signal_source=sig.source, confidence=sig.confidence,
+                )
+                if validation:
+                    old_conf = sig.confidence
+                    new_conf = max(0.1, min(1.0, sig.confidence + validation.confidence_adjustment))
+                    logger.info(
+                        "[Grok] %s %s: sentiment=%s | adj=%.2f | %s",
+                        sig.side.upper(), sig.coin, validation.twitter_sentiment,
+                        validation.confidence_adjustment, validation.reasoning[:80],
+                    )
+                    if validation.confidence_adjustment != 0:
+                        sig = Signal(coin=sig.coin, side=sig.side, confidence=new_conf, source=sig.source, raw_message=sig.raw_message)
+                        logger.info("[Grok] Confidence: %.2f → %.2f", old_conf, new_conf)
+
+                    if self._notifier and validation.warnings:
+                        try:
+                            embed = discord.Embed(
+                                title=f"Grokリサーチ | {sig.side.upper()} {sig.coin}",
+                                description=validation.reasoning[:300],
+                                color=0x1DA1F2,
+                            )
+                            embed.add_field(name="X/Twitterセンチメント", value=validation.twitter_sentiment, inline=True)
+                            embed.add_field(name="信頼度調整", value=f"{validation.confidence_adjustment:+.2f}", inline=True)
+                            if validation.warnings:
+                                embed.add_field(name="警告", value="\n".join(f"- {w}" for w in validation.warnings[:3]), inline=False)
+                            channel = self._notifier._client.get_channel(self._config.discord_notify_channel_id)
+                            if channel:
+                                await channel.send(embed=embed)
+                        except Exception:
+                            logger.exception("Error sending Grok research notification")
+            except Exception:
+                logger.exception("Grok research failed, continuing without it")
 
         # --- Agent Team Analysis ---
         account_state = None
@@ -413,6 +453,8 @@ class TradingBot:
         logger.info("ENV CHECK: DISCORD_NOTIFY_CHANNEL_ID=%s", self._config.discord_notify_channel_id or "MISSING")
         logger.info("ENV CHECK: HL_ACCOUNT_ADDRESS=%s", "SET" if self._config.hl_account_address else "MISSING")
         logger.info("ENV CHECK: ANTHROPIC_API_KEY=%s", "SET" if self._config.anthropic_api_key else "MISSING")
+        logger.info("ENV CHECK: XAI_API_KEY=%s", "SET" if self._config.xai_api_key else "MISSING")
+        logger.info("Grok Researcher: %s", "ENABLED" if self._researcher else "DISABLED")
 
         overrides = self._adaptive.get_overrides()
         active_rules = self._rulebook.get_active_rules()

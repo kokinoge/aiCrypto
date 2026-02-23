@@ -55,6 +55,7 @@ class BotConfig:
     discord_notify_channel_id: int = 0
     nansen_api_key: str = ""
     anthropic_api_key: str = ""
+    xai_api_key: str = ""
 
     @property
     def is_testnet(self) -> bool:
@@ -95,4 +96,5 @@ def load_config(path: Path | None = None) -> BotConfig:
         discord_notify_channel_id=int(os.getenv("DISCORD_NOTIFY_CHANNEL_ID", "0").strip()),
         nansen_api_key=os.getenv("NANSEN_API_KEY", "").strip(),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
+        xai_api_key=os.getenv("XAI_API_KEY", "").strip(),
     )
