@@ -86,10 +86,28 @@ class NansenDiscordMonitor:
                 await self._on_signal(signal)
 
     async def start(self) -> None:
-        token = self._config.discord_bot_token
+        token = self._config.discord_bot_token.strip()
         if not token:
             raise RuntimeError("DISCORD_BOT_TOKEN is required")
-        await self._client.start(token)
+
+        logger.info(
+            "Discord token check: length=%d, starts=%s, ends=%s",
+            len(token), token[:5] + "...", "..." + token[-5:],
+        )
+
+        for attempt in range(5):
+            try:
+                await self._client.start(token)
+                return
+            except Exception as e:
+                wait = min(30 * (attempt + 1), 120)
+                logger.error(
+                    "Discord login failed (attempt %d/5): %s — retrying in %ds",
+                    attempt + 1, e, wait,
+                )
+                if attempt == 4:
+                    raise
+                await asyncio.sleep(wait)
 
     async def close(self) -> None:
         await self._client.close()
