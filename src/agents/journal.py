@@ -222,6 +222,112 @@ class TradeJournal:
 
         return "\n".join(lines)
 
+    # ── Enhanced analytics ─────────────────────────────────────────────
+
+    def get_coin_stats(self, min_trades: int = 3) -> dict[str, dict]:
+        coin_map: dict[str, list[dict[str, Any]]] = {}
+        for t in self._data.trades:
+            coin_map.setdefault(t.get("coin", "UNKNOWN"), []).append(t)
+
+        result: dict[str, dict] = {}
+        for coin, trades in coin_map.items():
+            if len(trades) < min_trades:
+                continue
+            wins = [t for t in trades if t.get("pnl", 0) > 0]
+            total_pnl = sum(t.get("pnl", 0) for t in trades)
+            result[coin] = {
+                "total": len(trades),
+                "wins": len(wins),
+                "losses": len(trades) - len(wins),
+                "win_rate": round(len(wins) / len(trades), 2),
+                "total_pnl": round(total_pnl, 2),
+                "avg_pnl": round(total_pnl / len(trades), 2),
+            }
+        return result
+
+    def get_hourly_stats(self) -> dict[int, dict]:
+        hour_map: dict[int, list[dict[str, Any]]] = {}
+        for t in self._data.trades:
+            ts = t.get("timestamp", "")
+            try:
+                hour = datetime.fromisoformat(ts).hour
+            except (ValueError, TypeError):
+                continue
+            hour_map.setdefault(hour, []).append(t)
+
+        result: dict[int, dict] = {}
+        for hour, trades in hour_map.items():
+            wins = sum(1 for t in trades if t.get("pnl", 0) > 0)
+            result[hour] = {
+                "total": len(trades),
+                "wins": wins,
+                "losses": len(trades) - wins,
+                "win_rate": round(wins / len(trades), 2),
+            }
+        return result
+
+    def get_agent_accuracy(self) -> dict[str, dict]:
+        trade_outcomes: dict[tuple[str, str], bool] = {}
+        for t in self._data.trades:
+            key = (t.get("coin", ""), t.get("side", ""))
+            trade_outcomes[key] = t.get("pnl", 0) > 0
+
+        agent_stats: dict[str, dict[str, int]] = {}
+        for a in self._data.analyses:
+            coin = a.get("coin", "")
+            side = a.get("side", "")
+            key = (coin, side)
+            if key not in trade_outcomes:
+                continue
+
+            profitable = trade_outcomes[key]
+            agent_analyses = a.get("agent_analyses", {})
+            for agent_name, analysis in agent_analyses.items():
+                rec = analysis.get("recommendation", "").lower() if isinstance(analysis, dict) else ""
+                if not rec:
+                    continue
+
+                stats = agent_stats.setdefault(agent_name, {"total": 0, "correct": 0})
+                stats["total"] += 1
+
+                if (rec == "buy" and profitable) or (rec == "skip" and not profitable):
+                    stats["correct"] += 1
+
+        result: dict[str, dict] = {}
+        for agent_name, stats in agent_stats.items():
+            result[agent_name] = {
+                "total": stats["total"],
+                "correct": stats["correct"],
+                "accuracy": round(stats["correct"] / stats["total"], 2) if stats["total"] else 0.0,
+            }
+        return result
+
+    def get_streak(self) -> tuple[str, int]:
+        trades = self._data.trades
+        if not trades:
+            return ("none", 0)
+
+        last_win = trades[-1].get("pnl", 0) > 0
+        streak_type = "win" if last_win else "loss"
+        count = 0
+        for t in reversed(trades):
+            if (t.get("pnl", 0) > 0) == last_win:
+                count += 1
+            else:
+                break
+        return (streak_type, count)
+
+    def get_recent_lessons_text(self, limit: int = 5) -> str:
+        lessons = self._data.lessons[-limit:]
+        if not lessons:
+            return ""
+        lines: list[str] = []
+        for i, entry in enumerate(lessons, 1):
+            coin = entry.get("coin", "?")
+            lesson = entry.get("lesson", "")
+            lines.append(f"{i}. [{coin}] {lesson}")
+        return "\n".join(lines)
+
     # ── Persistence helpers ───────────────────────────────────────────
 
     def _load(self) -> JournalData:

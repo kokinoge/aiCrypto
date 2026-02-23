@@ -270,6 +270,73 @@ class DiscordNotifier:
         embed.set_footer(text=f"Smart Money Bot | {self._mode_label}")
         await channel.send(embed=embed)
 
+    async def send_weekly_report(
+        self, review_data: dict, win_rate: dict, agent_accuracy: dict, active_rules: int,
+    ) -> None:
+        channel = await self._get_channel()
+        if not channel:
+            return
+
+        pnl = review_data.get("total_pnl", 0)
+        color = 0x00FF88 if pnl >= 0 else 0xFF4444
+
+        embed = discord.Embed(
+            title="週次パフォーマンスレポート",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+
+        embed.add_field(name="総合評価", value=review_data["overall_grade"], inline=True)
+
+        summary = review_data.get("summary", "")
+        if len(summary) > 200:
+            summary = summary[:200] + "…"
+        embed.add_field(name="サマリー", value=summary, inline=False)
+
+        wins = win_rate.get("wins", 0)
+        losses = win_rate.get("losses", 0)
+        rate = win_rate.get("win_rate", 0)
+        embed.add_field(name="勝率", value=f"{rate:.0f}% ({wins}勝 / {losses}敗)", inline=True)
+
+        best = review_data.get("best_performing", {})
+        if best:
+            embed.add_field(
+                name="最優秀コイン",
+                value=f"{best['coin']} — {best.get('reason', '')}",
+                inline=True,
+            )
+
+        worst = review_data.get("worst_performing")
+        if worst:
+            embed.add_field(
+                name="最低コイン",
+                value=f"{worst['coin']} — {worst.get('reason', '')}",
+                inline=True,
+            )
+
+        if agent_accuracy:
+            lines = [f"{name}: {acc:.0%}" for name, acc in agent_accuracy.items()]
+            embed.add_field(name="エージェント精度", value="\n".join(lines), inline=False)
+
+        proposed = review_data.get("proposed_rules", [])
+        embed.add_field(name="新ルール", value=str(len(proposed)), inline=True)
+        embed.add_field(name="アクティブルール", value=str(active_rules), inline=True)
+
+        insights = review_data.get("key_insights", [])[:3]
+        if insights:
+            embed.add_field(name="主要インサイト", value="\n".join(insights), inline=False)
+
+        next_focus = review_data.get("next_week_focus", "")
+        if next_focus:
+            embed.add_field(name="来週の注目", value=next_focus, inline=False)
+
+        embed.set_footer(text=f"Smart Money Bot | {self._mode_label}")
+        try:
+            await channel.send(embed=embed)
+            logger.info("Weekly report sent to #%s", channel.name)
+        except Exception:
+            logger.exception("Failed to send weekly report")
+
     async def send_emergency_halt(self, reason: str) -> None:
         channel = await self._get_channel()
         if not channel:
@@ -404,6 +471,7 @@ class DiscordNotifier:
         embed.add_field(name="!status", value="資産状況（残高・損益・リターン・ポジション数）", inline=False)
         embed.add_field(name="!positions", value="オープンポジションの詳細（現在価格・含み損益）", inline=False)
         embed.add_field(name="!history", value="直近5件の決済済み取引", inline=False)
+        embed.add_field(name="!rules", value="学習状況（アクティブルール・パラメータ調整）", inline=False)
         embed.add_field(name="!help", value="このヘルプを表示", inline=False)
         embed.set_footer(text=f"Smart Money Bot | {self._mode_label}")
         await message.channel.send(embed=embed)

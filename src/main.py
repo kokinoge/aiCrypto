@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 import signal
 import sys
 
 import discord
 
+from src.agents.adaptive import AdaptiveParams
 from src.agents.journal import TradeJournal
+from src.agents.rulebook import StrategyRulebook
 from src.agents.team import AgentTeam
 from src.config import load_config
 from src.hyperliquid.client import HyperliquidClient
@@ -42,6 +45,8 @@ class TradingBot:
 
         self._journal = TradeJournal()
         self._agent_team = AgentTeam(self._config, self._hl_client, self._risk_manager, self._journal)
+        self._adaptive = AdaptiveParams(self._journal, self._config.risk, self._config.signals)
+        self._rulebook = StrategyRulebook()
 
         self._signal_engine = SignalEngine()
         self._notifier: DiscordNotifier | None = None
@@ -49,9 +54,44 @@ class TradingBot:
         self._webhook: WebhookServer | None = None
         self._status_task: asyncio.Task | None = None
         self._sl_tp_task: asyncio.Task | None = None
+        self._daily_task: asyncio.Task | None = None
+        self._weekly_task: asyncio.Task | None = None
 
     async def _handle_signal(self, sig: Signal) -> None:
         logger.info("Processing signal: %s %s (confidence=%.2f)", sig.side, sig.coin, sig.confidence)
+
+        # --- Adaptive: skip hours check ---
+        should_skip, skip_reason = self._adaptive.should_skip_now()
+        if should_skip:
+            logger.info("[Adaptive] Skipping: %s", skip_reason)
+            return
+
+        # --- Adaptive: adjust confidence ---
+        adjusted_conf = self._adaptive.get_adjusted_confidence(sig.coin, sig.confidence)
+        if adjusted_conf != sig.confidence:
+            logger.info("[Adaptive] Confidence adjusted: %.2f → %.2f for %s", sig.confidence, adjusted_conf, sig.coin)
+            sig = Signal(coin=sig.coin, side=sig.side, confidence=adjusted_conf, source=sig.source, raw_message=sig.raw_message)
+
+        # --- Rulebook: check rules ---
+        try:
+            market_info = self._hl_client.get_market_info(sig.coin)
+        except Exception:
+            market_info = None
+
+        rule_matches = self._rulebook.check_signal(sig, market_info)
+        for match in rule_matches:
+            if match.action == "skip":
+                logger.info("[Rulebook] Rule triggered — skip: %s", match.reason)
+                return
+            elif match.action == "reduce_confidence":
+                old_conf = sig.confidence
+                new_conf = max(0.0, sig.confidence - match.value)
+                sig = Signal(coin=sig.coin, side=sig.side, confidence=new_conf, source=sig.source, raw_message=sig.raw_message)
+                logger.info("[Rulebook] Confidence reduced: %.2f → %.2f (%s)", old_conf, new_conf, match.reason)
+
+        if sig.confidence < self._config.signals.min_confidence:
+            logger.info("Signal confidence %.2f below threshold after adjustments, skipping", sig.confidence)
+            return
 
         # --- Agent Team Analysis ---
         account_state = None
@@ -84,6 +124,9 @@ class TradingBot:
                     return
 
         trade_confidence = decision.adjusted_confidence if decision and decision.agent_analyses else sig.confidence
+
+        # --- Adaptive: apply position size modifier ---
+        overrides = self._adaptive.get_overrides()
 
         try:
             if self._config.is_paper:
@@ -142,12 +185,9 @@ class TradingBot:
                 logger.exception("Error in periodic status check")
 
     async def _daily_report_loop(self) -> None:
-        """Send a daily performance report at 9:00 AM JST (00:00 UTC)."""
-        import datetime as dt
+        jst = dt.timezone(dt.timedelta(hours=9))
         while True:
-            now = dt.datetime.now(dt.timezone.utc)
-            jst = dt.timezone(dt.timedelta(hours=9))
-            now_jst = now.astimezone(jst)
+            now_jst = dt.datetime.now(dt.timezone.utc).astimezone(jst)
             target = now_jst.replace(hour=9, minute=0, second=0, microsecond=0)
             if now_jst >= target:
                 target += dt.timedelta(days=1)
@@ -166,8 +206,88 @@ class TradingBot:
             except Exception:
                 logger.exception("Error sending daily report")
 
+    async def _weekly_review_loop(self) -> None:
+        """Run weekly AI review every Sunday at 21:00 JST."""
+        jst = dt.timezone(dt.timedelta(hours=9))
+        while True:
+            now_jst = dt.datetime.now(dt.timezone.utc).astimezone(jst)
+            days_until_sunday = (6 - now_jst.weekday()) % 7
+            if days_until_sunday == 0 and now_jst.hour >= 21:
+                days_until_sunday = 7
+            target = now_jst.replace(hour=21, minute=0, second=0, microsecond=0) + dt.timedelta(days=days_until_sunday)
+            wait_seconds = (target - now_jst).total_seconds()
+            logger.info("Next weekly review in %.1f days", wait_seconds / 86400)
+            await asyncio.sleep(wait_seconds)
+
+            try:
+                await self._run_weekly_review()
+            except Exception:
+                logger.exception("Error in weekly review")
+
+    async def _run_weekly_review(self) -> None:
+        logger.info("[WeeklyReview] Starting weekly performance review...")
+
+        trades = self._journal.get_past_trades(limit=50)
+        win_rate = self._journal.get_win_rate()
+        coin_stats = self._journal.get_coin_stats()
+        hourly_stats = self._journal.get_hourly_stats()
+        agent_accuracy = self._journal.get_agent_accuracy()
+        active_rules = self._rulebook.get_active_rules()
+        lessons = self._journal.get_lessons(limit=10)
+
+        current_params = {
+            "risk_per_trade_pct": self._config.risk.max_risk_per_trade_pct,
+            "min_confidence": self._config.signals.min_confidence,
+            "position_size_modifier": self._adaptive.get_overrides().position_size_modifier,
+        }
+        rules_data = [{"description": r.description, "condition_type": r.condition_type, "active": r.active} for r in active_rules]
+
+        review = await self._agent_team.run_weekly_review(
+            trades=trades,
+            win_rate=win_rate,
+            coin_stats=coin_stats,
+            hourly_stats=hourly_stats,
+            agent_accuracy=agent_accuracy,
+            current_rules=rules_data,
+            current_params=current_params,
+            lessons=[l if isinstance(l, dict) else {"lesson": l} for l in lessons],
+        )
+
+        if not review:
+            logger.warning("[WeeklyReview] No review data returned")
+            return
+
+        # Apply proposed rules
+        proposed_rules = review.get("proposed_rules", [])
+        for rule_data in proposed_rules[:5]:
+            try:
+                from src.agents.rulebook import StrategyRule
+                rule = StrategyRule(
+                    id=f"weekly_{dt.datetime.now().strftime('%Y%m%d')}_{len(self._rulebook.get_active_rules())}",
+                    description=rule_data.get("description", ""),
+                    condition_type=rule_data.get("condition_type", "custom"),
+                    condition=rule_data.get("condition", {}),
+                    action=rule_data.get("action", "reduce_confidence"),
+                    action_value=rule_data.get("action_value", 0.1),
+                    created_at=dt.datetime.now(dt.timezone.utc).isoformat(),
+                    source="weekly_review",
+                )
+                self._rulebook.add_rule(rule)
+                logger.info("[WeeklyReview] New rule added: %s", rule.description)
+            except Exception:
+                logger.exception("Failed to add proposed rule")
+
+        if self._notifier:
+            try:
+                await self._notifier.send_weekly_report(
+                    review, win_rate, agent_accuracy, len(active_rules),
+                )
+            except Exception:
+                logger.exception("Error sending weekly report")
+
+        logger.info("[WeeklyReview] Review complete")
+
     async def _check_sl_tp_loop(self) -> None:
-        """Periodically check paper positions for SL/TP hits."""
         while True:
             await asyncio.sleep(60)
             if not self._config.is_paper:
@@ -188,9 +308,16 @@ class TradingBot:
                         entry_price=pos.entry_price, exit_price=pos.entry_price,
                         pnl=pnl, reason=reason,
                     )
+
                     review = await self._agent_team.review_trade(trade_record)
-                    if review and review.get("lessons"):
-                        logger.info("[AgentTeam] Lessons: %s", review["lessons"])
+                    if review:
+                        if review.get("lessons"):
+                            logger.info("[AgentTeam] Lessons: %s", review["lessons"])
+                        rule = self._rulebook.add_rule_from_ai(review)
+                        if rule:
+                            logger.info("[Rulebook] New rule from review: %s", rule.description)
+
+                    self._adaptive.recalculate()
             except Exception:
                 logger.exception("Error checking SL/TP")
 
@@ -242,12 +369,33 @@ class TradingBot:
             closed = self._get_closed_trades()
             await self._notifier.send_cmd_history(message, closed)
 
+        elif cmd == "!rules":
+            rules = self._rulebook.get_active_rules()
+            overrides = self._adaptive.get_overrides()
+            streak_type, streak_count = self._journal.get_streak()
+            embed = discord.Embed(
+                title="学習状況",
+                color=0x5865F2,
+            )
+            embed.add_field(name="アクティブルール", value=str(len(rules)), inline=True)
+            embed.add_field(name="連続成績", value=f"{streak_type} {streak_count}回", inline=True)
+            embed.add_field(name="サイズ倍率", value=f"{overrides.position_size_modifier:.1f}x", inline=True)
+            if overrides.risk_per_trade_pct:
+                embed.add_field(name="リスク/取引", value=f"{overrides.risk_per_trade_pct:.1f}%", inline=True)
+            if overrides.coin_confidence_adjustments:
+                adj_text = "\n".join(f"{c}: {v:+.2f}" for c, v in overrides.coin_confidence_adjustments.items())
+                embed.add_field(name="コイン別調整", value=adj_text, inline=False)
+            if rules:
+                rule_text = "\n".join(f"- {r.description[:50]}" for r in rules[:5])
+                embed.add_field(name="ルール一覧", value=rule_text, inline=False)
+            await message.channel.send(embed=embed)
+
         elif cmd == "!help":
             await self._notifier.send_cmd_help(message)
 
         else:
             embed = discord.Embed(
-                description=f"Unknown command: `{cmd}`\nType `!help` for available commands.",
+                description=f"不明なコマンド: `{cmd}`\n`!help` で一覧を表示",
                 color=0xFF4444,
             )
             await message.channel.send(embed=embed)
@@ -265,6 +413,10 @@ class TradingBot:
         logger.info("ENV CHECK: DISCORD_NOTIFY_CHANNEL_ID=%s", self._config.discord_notify_channel_id or "MISSING")
         logger.info("ENV CHECK: HL_ACCOUNT_ADDRESS=%s", "SET" if self._config.hl_account_address else "MISSING")
         logger.info("ENV CHECK: ANTHROPIC_API_KEY=%s", "SET" if self._config.anthropic_api_key else "MISSING")
+
+        overrides = self._adaptive.get_overrides()
+        active_rules = self._rulebook.get_active_rules()
+        logger.info("Learning: %d active rules | size_mod=%.1fx", len(active_rules), overrides.position_size_modifier)
         logger.info("=" * 60)
 
         tradeable = self._hl_client.get_tradeable_coins()
@@ -295,6 +447,7 @@ class TradingBot:
 
         self._status_task = asyncio.create_task(self._periodic_status())
         self._daily_task = asyncio.create_task(self._daily_report_loop())
+        self._weekly_task = asyncio.create_task(self._weekly_review_loop())
         if self._config.is_paper:
             self._sl_tp_task = asyncio.create_task(self._check_sl_tp_loop())
 
@@ -303,12 +456,9 @@ class TradingBot:
 
     async def stop(self) -> None:
         logger.info("Shutting down bot...")
-        if self._status_task:
-            self._status_task.cancel()
-        if hasattr(self, '_daily_task') and self._daily_task:
-            self._daily_task.cancel()
-        if self._sl_tp_task:
-            self._sl_tp_task.cancel()
+        for task in [self._status_task, self._daily_task, self._weekly_task, self._sl_tp_task]:
+            if task:
+                task.cancel()
         if self._webhook:
             await self._webhook.stop()
         if self._monitor:

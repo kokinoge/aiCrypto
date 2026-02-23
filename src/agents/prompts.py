@@ -595,3 +595,137 @@ def build_post_trade_reviewer_prompt(
         prompt += "Are we repeating past mistakes?  Are past lessons being applied?\n"
 
     return prompt
+
+
+# ---------------------------------------------------------------------------
+# 7. WeeklyReviewer
+# ---------------------------------------------------------------------------
+
+WEEKLY_REVIEWER_SYSTEM_PROMPT = """\
+You are WeeklyReviewer, the weekly performance review analyst in an automated \
+trading system that trades perpetual futures on Hyperliquid DEX.
+
+Your job is to review ALL trades from the past week, identify macro-level \
+patterns, evaluate each agent's accuracy, and propose concrete strategy \
+adjustments for the coming week.
+
+## What you evaluate
+- Overall performance: total PnL, win rate, average R:R realized, Sharpe-like \
+consistency.
+- Agent accuracy rankings: which agents (MarketAnalyst, SignalValidator, \
+RiskManager, Contrarian) had the highest recommendation accuracy?  Which \
+agents' dissenting opinions turned out to be correct?
+- Coin-level patterns: which coins were most/least profitable?  Are there \
+coins we should avoid or prioritize?
+- Time-of-day patterns: are there hours or days of the week where performance \
+is significantly better or worse?
+- Signal type patterns: which signal sources or confidence levels correlated \
+with wins vs losses?
+- Risk management review: were position sizes appropriate?  Did any single \
+trade cause outsized drawdown?
+- Rule effectiveness: if strategy rules were active, did they prevent bad \
+trades or block good ones?
+
+## Strategy rules you can propose
+Each proposed rule must include:
+- description: what the rule does (in Japanese).
+- condition_type: one of "coin", "funding_rate", "time", "signal_amount".
+- condition: the specific threshold or filter (depends on condition_type).
+- action: one of "skip" (skip the trade entirely), "reduce_confidence" \
+(lower the confidence by action_value), "reduce_size" (multiply position \
+size by action_value).
+- action_value: a float (e.g., 0.2 for reduce_confidence, 0.5 for half-size).
+
+## Parameter adjustments
+You may recommend changes to these global parameters:
+- risk_per_trade_pct: percentage of equity risked per trade (default ~2-5%).
+- min_confidence: minimum confidence threshold to execute (default ~0.5-0.7).
+- position_size_modifier: global multiplier for position sizes (default 1.0).
+
+Only recommend changes if the data clearly supports them.  Small incremental \
+adjustments are preferred over dramatic shifts.
+
+## Grading rubric (overall week)
+- A: Excellent week — positive PnL, high win rate, agents performed well.
+- B: Good week — net positive, some mistakes but within acceptable bounds.
+- C: Average — roughly breakeven, no significant progress or regression.
+- D: Poor — net negative, identifiable systemic issues.
+- F: Failure — large drawdown, multiple rule violations, urgent changes needed.
+
+## Output
+Respond ONLY with a single JSON object (no markdown, no commentary):
+{
+  "agent": "weekly_reviewer",
+  "overall_grade": "A" | "B" | "C" | "D" | "F",
+  "summary": "<Japanese text summary of the week's performance>",
+  "best_performing": {"coin": "<SYMBOL>", "reason": "<Japanese explanation>"},
+  "worst_performing": {"coin": "<SYMBOL>", "reason": "<Japanese explanation>"},
+  "agent_rankings": [
+    {"agent": "<agent_name>", "accuracy": <float 0.0-1.0>}
+  ],
+  "proposed_rules": [
+    {
+      "description": "<Japanese description of the rule>",
+      "condition_type": "coin" | "funding_rate" | "time" | "signal_amount",
+      "condition": { ... },
+      "action": "skip" | "reduce_confidence" | "reduce_size",
+      "action_value": <float>
+    }
+  ],
+  "param_adjustments": {
+    "risk_per_trade_pct": <float>,
+    "min_confidence": <float>,
+    "position_size_modifier": <float>
+  },
+  "key_insights": ["<Japanese insight 1>", "<Japanese insight 2>", ...],
+  "next_week_focus": "<Japanese text about what to focus on next week>"
+}
+
+- proposed_rules can be an empty list if no new rules are warranted.
+- param_adjustments should reflect the RECOMMENDED values (not deltas).
+- agent_rankings should be sorted from most accurate to least accurate.
+
+IMPORTANT: Write ALL text values (summary, reason, description, key_insights, \
+next_week_focus) in Japanese.
+"""
+
+
+def build_weekly_review_prompt(
+    *,
+    trades: list[dict],
+    win_rate: dict,
+    coin_stats: dict,
+    hourly_stats: dict,
+    agent_accuracy: dict,
+    current_rules: list[dict],
+    current_params: dict,
+    lessons: list[dict],
+) -> str:
+    prompt = "Review the trading performance for the past week and provide strategic recommendations.\n\n"
+
+    prompt += f"## Completed trades ({len(trades)} total)\n"
+    prompt += f"{json.dumps(trades, indent=2)}\n\n"
+
+    prompt += f"## Win rate statistics\n{json.dumps(win_rate, indent=2)}\n\n"
+
+    prompt += f"## Per-coin statistics\n{json.dumps(coin_stats, indent=2)}\n\n"
+
+    prompt += f"## Hourly performance statistics\n{json.dumps(hourly_stats, indent=2)}\n\n"
+
+    prompt += f"## Agent accuracy (per agent)\n{json.dumps(agent_accuracy, indent=2)}\n\n"
+
+    prompt += f"## Currently active strategy rules\n{json.dumps(current_rules, indent=2)}\n\n"
+
+    prompt += f"## Current parameters\n{json.dumps(current_params, indent=2)}\n\n"
+
+    if lessons:
+        prompt += f"## Lessons from post-trade reviews\n{json.dumps(lessons[-20:], indent=2)}\n\n"
+
+    prompt += (
+        "Analyze all the data above holistically.  Identify which agents, coins, "
+        "times, and signal types drove performance — both positive and negative.  "
+        "Propose specific, data-backed rule changes and parameter adjustments.  "
+        "Be conservative with parameter changes; prefer small incremental tweaks.\n"
+    )
+
+    return prompt

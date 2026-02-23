@@ -13,12 +13,14 @@ from src.agents.prompts import (
     RISK_MANAGER_SYSTEM_PROMPT,
     SIGNAL_VALIDATOR_SYSTEM_PROMPT,
     STRATEGIST_SYSTEM_PROMPT,
+    WEEKLY_REVIEWER_SYSTEM_PROMPT,
     build_contrarian_prompt,
     build_market_analyst_prompt,
     build_post_trade_reviewer_prompt,
     build_risk_manager_prompt,
     build_signal_validator_prompt,
     build_strategist_prompt,
+    build_weekly_review_prompt,
 )
 from src.config import BotConfig
 from src.hyperliquid.client import AccountState, HyperliquidClient, MarketInfo
@@ -191,6 +193,41 @@ class AgentTeam:
         )
 
         return decision
+
+    async def run_weekly_review(
+        self,
+        trades: list[dict],
+        win_rate: dict,
+        coin_stats: dict,
+        hourly_stats: dict,
+        agent_accuracy: dict,
+        current_rules: list[dict],
+        current_params: dict,
+        lessons: list[dict],
+    ) -> dict:
+        if not self._enabled:
+            return {}
+        try:
+            result = await self._run_agent(
+                "WeeklyReviewer",
+                WEEKLY_REVIEWER_SYSTEM_PROMPT,
+                build_weekly_review_prompt(
+                    trades=trades,
+                    win_rate=win_rate,
+                    coin_stats=coin_stats,
+                    hourly_stats=hourly_stats,
+                    agent_accuracy=agent_accuracy,
+                    current_rules=current_rules,
+                    current_params=current_params,
+                    lessons=lessons,
+                ),
+                max_tokens=1200,
+            )
+            logger.info("[AgentTeam] Weekly review completed: grade=%s", result.get("overall_grade", "?"))
+            return result
+        except Exception:
+            logger.exception("Weekly review failed")
+            return {}
 
     async def review_trade(self, trade_record: dict) -> dict:
         if not self._enabled:
