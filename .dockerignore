@@ -9,3 +9,6 @@ logs/
 .gitignore
 *.md
 scripts/
+frontend/node_modules/
+frontend/.next/
+frontend/out/

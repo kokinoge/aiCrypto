@@ -100,6 +100,32 @@ class HyperliquidClient:
             open_interest=float(ctx["openInterest"]),
         )
 
+    def get_all_coins_with_market_data(self) -> list[MarketInfo]:
+        """Fetch market data for all tradeable coins in a single API call."""
+        ctx_list = self._info.meta_and_asset_ctxs()
+        universe = ctx_list[0]["universe"]
+        asset_ctxs = ctx_list[1]
+
+        results = []
+        for i, u in enumerate(universe):
+            if i >= len(asset_ctxs):
+                break
+            ctx = asset_ctxs[i]
+            try:
+                mark_px = float(ctx["markPx"])
+                mid_px_raw = ctx.get("midPx")
+                mid_px = float(mid_px_raw) if mid_px_raw is not None else mark_px
+                results.append(MarketInfo(
+                    coin=u["name"],
+                    mark_price=mark_px,
+                    mid_price=mid_px,
+                    funding_rate=float(ctx["funding"]),
+                    open_interest=float(ctx["openInterest"]),
+                ))
+            except (KeyError, ValueError, TypeError):
+                continue
+        return results
+
     def get_account_state(self) -> AccountState:
         address = self._config.hl_account_address
         if not address:

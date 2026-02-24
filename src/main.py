@@ -21,6 +21,7 @@ from src.hyperliquid.trader import Trader
 from src.notifications.discord_notifier import DiscordNotifier
 from src.signals.discord_monitor import NansenDiscordMonitor
 from src.signals.engine import Signal, SignalEngine
+from src.coin_lists import CoinListManager
 from src.signals.webhook_server import WebhookServer
 from src.utils.logger import setup_logger
 
@@ -53,14 +54,65 @@ class TradingBot:
         self._signal_engine = SignalEngine()
         self._notifier: DiscordNotifier | None = None
         self._monitor: NansenDiscordMonitor | None = None
+        self._coin_lists = CoinListManager(
+            on_change=self._broadcast_blacklist_change,
+        )
         self._webhook: WebhookServer | None = None
         self._status_task: asyncio.Task | None = None
         self._sl_tp_task: asyncio.Task | None = None
         self._daily_task: asyncio.Task | None = None
         self._weekly_task: asyncio.Task | None = None
 
+    async def _broadcast_blacklist_change(self) -> None:
+        if self._webhook:
+            await self._webhook.broadcast("blacklist_updated", {
+                "blacklist": self._coin_lists.get_blacklist(),
+            })
+
+    def _get_all_coins_data(self) -> list[dict]:
+        """Get all coins with market data for the /api/coins endpoint."""
+        try:
+            markets = self._hl_client.get_all_coins_with_market_data()
+        except Exception:
+            logger.exception("Failed to fetch all coins market data")
+            return []
+
+        coin_stats = {}
+        if hasattr(self, "_journal"):
+            try:
+                coin_stats = self._journal.get_coin_stats()
+            except Exception:
+                pass
+
+        coin_adjustments = {}
+        if hasattr(self, "_adaptive"):
+            try:
+                coin_adjustments = self._adaptive.get_overrides().coin_confidence_adjustments
+            except Exception:
+                pass
+
+        result = []
+        for m in markets:
+            stats = coin_stats.get(m.coin, {})
+            result.append({
+                "coin": m.coin,
+                "mark_price": m.mark_price,
+                "funding_rate": m.funding_rate,
+                "open_interest": m.open_interest,
+                "trade_count": stats.get("total", 0),
+                "win_rate": stats.get("win_rate", None),
+                "total_pnl": stats.get("total_pnl", None),
+                "confidence_adjustment": coin_adjustments.get(m.coin, 0.0),
+            })
+        return result
+
     async def _handle_signal(self, sig: Signal) -> None:
         logger.info("Processing signal: %s %s (confidence=%.2f)", sig.side, sig.coin, sig.confidence)
+
+        # Check blacklist before any processing
+        if self._coin_lists.is_blacklisted(sig.coin):
+            logger.info("Signal for %s blocked by blacklist", sig.coin)
+            return
 
         # --- Adaptive: skip hours check ---
         should_skip, skip_reason = self._adaptive.should_skip_now()
@@ -179,6 +231,13 @@ class TradingBot:
 
         if result is None:
             return
+
+        if result.success and self._webhook:
+            await self._webhook.broadcast("trade_executed", {
+                "coin": result.coin, "side": result.side,
+                "size": result.size, "price": result.price,
+            })
+            await self._webhook.broadcast("dashboard_update", self._get_dashboard_data())
 
         if result.success and self._notifier:
             try:
@@ -337,6 +396,12 @@ class TradingBot:
                 for pos, reason, pnl in closed:
                     if self._notifier:
                         await self._notifier.send_paper_sl_tp(pos.coin, pos.side, reason, pnl)
+
+                    if self._webhook:
+                        await self._webhook.broadcast("position_closed", {
+                            "coin": pos.coin, "side": pos.side, "pnl": pnl,
+                        })
+                        await self._webhook.broadcast("dashboard_update", self._get_dashboard_data())
 
                     trade_record = {
                         "coin": pos.coin, "side": pos.side,
@@ -564,6 +629,8 @@ class TradingBot:
                 signal_engine=self._signal_engine,
                 on_signal=self._handle_signal,
                 get_dashboard_data=self._get_dashboard_data,
+                get_all_coins_data=self._get_all_coins_data,
+                coin_list_manager=self._coin_lists,
             )
             await self._webhook.start()
 

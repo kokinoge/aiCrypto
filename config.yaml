@@ -30,7 +30,7 @@ trading_pairs: []
 # Discordに加えて、HTTPでもシグナルを受信できる
 webhook:
   enabled: true                  # Webhookサーバーを有効にする
-  port: 8080                     # 待ち受けポート番号
+  port: 8080                     # 待ち受けポート番号（Railway では PORT 環境変数で上書き）
 
 # --- Logging ---
 logging:

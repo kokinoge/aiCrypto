@@ -13,3 +13,9 @@ build/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+data/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/

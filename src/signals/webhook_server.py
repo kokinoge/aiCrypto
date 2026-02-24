@@ -7,8 +7,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from aiohttp import web
+from aiohttp import web, WSMsgType
 
+from src.coin_lists import CoinListManager
 from src.config import BotConfig
 from src.signals.engine import Signal, SignalEngine
 
@@ -16,6 +17,7 @@ logger = logging.getLogger("trading_bot")
 
 VALID_SIDES = {"long", "short"}
 DASHBOARD_HTML = Path(__file__).parent.parent / "web" / "dashboard.html"
+FRONTEND_BUILD_DIR = Path(__file__).parent.parent.parent / "frontend" / "out"
 
 
 class WebhookServer:
@@ -35,20 +37,39 @@ class WebhookServer:
         signal_engine: SignalEngine,
         on_signal: Callable[[Signal], Awaitable[None]],
         get_dashboard_data: Callable[[], dict[str, Any]] | None = None,
+        get_all_coins_data: Callable[[], list[dict[str, Any]]] | None = None,
+        coin_list_manager: CoinListManager | None = None,
     ):
         self._config = config
         self._engine = signal_engine
         self._on_signal = on_signal
         self._get_dashboard_data = get_dashboard_data
+        self._get_all_coins_data = get_all_coins_data
+        self._coin_list_manager = coin_list_manager
         self._start_time = time.time()
         self._signals_received = 0
+        self._ws_clients: set[web.WebSocketResponse] = set()
 
-        self._app = web.Application()
+        self._app = web.Application(middlewares=[self._cors_middleware])
         self._app.router.add_get("/", self._handle_dashboard)
         self._app.router.add_get("/health", self._handle_health)
         self._app.router.add_get("/api/dashboard", self._handle_dashboard_api)
         self._app.router.add_post("/webhook/nansen", self._handle_nansen)
         self._app.router.add_post("/webhook/custom", self._handle_custom)
+        # WebSocket
+        self._app.router.add_get("/ws", self._handle_ws)
+        # Coin management API
+        self._app.router.add_get("/api/coins", self._handle_get_coins)
+        self._app.router.add_get("/api/coins/blacklist", self._handle_get_blacklist)
+        self._app.router.add_post("/api/coins/blacklist", self._handle_add_blacklist)
+        self._app.router.add_delete("/api/coins/blacklist/{coin}", self._handle_remove_blacklist)
+        # Static assets for React frontend (_next/static/*, etc.)
+        if FRONTEND_BUILD_DIR.exists():
+            next_assets = FRONTEND_BUILD_DIR / "_next"
+            if next_assets.exists():
+                self._app.router.add_static("/_next", next_assets)
+            # Catch-all for frontend pages (must be last)
+            self._app.router.add_get("/{path:.*}", self._handle_frontend_fallback)
         self._runner: web.AppRunner | None = None
 
     async def start(self) -> None:
@@ -69,6 +90,11 @@ class WebhookServer:
     # ------------------------------------------------------------------
 
     async def _handle_dashboard(self, request: web.Request) -> web.Response:
+        # Prefer React frontend
+        react_index = FRONTEND_BUILD_DIR / "index.html"
+        if react_index.exists():
+            return web.FileResponse(react_index)
+        # Fallback to legacy HTML dashboard
         if DASHBOARD_HTML.exists():
             return web.Response(
                 text=DASHBOARD_HTML.read_text(encoding="utf-8"),
@@ -180,6 +206,205 @@ class WebhookServer:
             "side": signal.side,
             "confidence": signal.confidence,
         })
+
+    # ------------------------------------------------------------------
+    # CORS middleware
+    # ------------------------------------------------------------------
+
+    @web.middleware
+    async def _cors_middleware(self, request: web.Request, handler: Callable) -> web.Response:
+        if request.method == "OPTIONS":
+            response = web.Response()
+        else:
+            response = await handler(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,DELETE,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
+
+    # ------------------------------------------------------------------
+    # WebSocket  GET /ws
+    # ------------------------------------------------------------------
+
+    async def _handle_ws(self, request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse(heartbeat=30.0)
+        await ws.prepare(request)
+        self._ws_clients.add(ws)
+        logger.info("WebSocket client connected (%d total)", len(self._ws_clients))
+
+        # Send initial state on connect
+        try:
+            initial: dict[str, Any] = {"type": "initial_state", "data": {}, "timestamp": datetime.now(timezone.utc).isoformat()}
+            if self._get_dashboard_data:
+                try:
+                    initial["data"]["dashboard"] = self._get_dashboard_data()
+                except Exception:
+                    logger.exception("Error getting dashboard data for WS initial state")
+            if self._get_all_coins_data:
+                try:
+                    initial["data"]["coins"] = self._get_all_coins_data()
+                except Exception:
+                    logger.exception("Error getting coins data for WS initial state")
+            if self._coin_list_manager:
+                initial["data"]["blacklist"] = self._coin_list_manager.get_blacklist()
+            await ws.send_str(json.dumps(initial))
+        except Exception:
+            logger.exception("Error sending WS initial state")
+
+        try:
+            async for msg in ws:
+                if msg.type == WSMsgType.TEXT:
+                    try:
+                        payload = json.loads(msg.data)
+                        msg_type = payload.get("type", "")
+                    except (json.JSONDecodeError, AttributeError):
+                        continue
+
+                    if msg_type == "request_dashboard":
+                        data = {}
+                        if self._get_dashboard_data:
+                            try:
+                                data = self._get_dashboard_data()
+                            except Exception:
+                                logger.exception("Error getting dashboard data for WS request")
+                        await ws.send_str(json.dumps({
+                            "type": "dashboard_update",
+                            "data": data,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }))
+
+                    elif msg_type == "request_coins":
+                        data: list[dict[str, Any]] = []
+                        if self._get_all_coins_data:
+                            try:
+                                data = self._get_all_coins_data()
+                            except Exception:
+                                logger.exception("Error getting coins data for WS request")
+                        await ws.send_str(json.dumps({
+                            "type": "coins_update",
+                            "data": data,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }))
+
+                elif msg.type in (WSMsgType.ERROR, WSMsgType.CLOSE):
+                    break
+        finally:
+            self._ws_clients.discard(ws)
+            logger.info("WebSocket client disconnected (%d remaining)", len(self._ws_clients))
+
+        return ws
+
+    # ------------------------------------------------------------------
+    # Broadcast to all WebSocket clients
+    # ------------------------------------------------------------------
+
+    async def broadcast(self, event_type: str, data: dict[str, Any]) -> None:
+        if not self._ws_clients:
+            return
+        message = json.dumps({
+            "type": event_type,
+            "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        disconnected: set[web.WebSocketResponse] = set()
+        for ws in self._ws_clients:
+            try:
+                await ws.send_str(message)
+            except (ConnectionResetError, Exception):
+                disconnected.add(ws)
+        self._ws_clients -= disconnected
+
+    # ------------------------------------------------------------------
+    # Coin management API
+    # ------------------------------------------------------------------
+
+    async def _handle_get_coins(self, request: web.Request) -> web.Response:
+        """GET /api/coins - All coins with market data and blacklist status."""
+        coins: list[dict[str, Any]] = []
+        if self._get_all_coins_data:
+            try:
+                coins = self._get_all_coins_data()
+            except Exception:
+                logger.exception("Error getting all coins data")
+                return web.json_response({"error": "internal error"}, status=500)
+
+        blacklisted = set()
+        if self._coin_list_manager:
+            blacklisted = self._coin_list_manager.get_blacklisted_coins()
+
+        for coin in coins:
+            coin["blacklisted"] = coin.get("coin", "") in blacklisted
+
+        return web.json_response({"coins": coins, "total": len(coins)})
+
+    async def _handle_get_blacklist(self, request: web.Request) -> web.Response:
+        """GET /api/coins/blacklist - Current blacklist."""
+        if not self._coin_list_manager:
+            return web.json_response({"blacklist": []})
+        return web.json_response({"blacklist": self._coin_list_manager.get_blacklist()})
+
+    async def _handle_add_blacklist(self, request: web.Request) -> web.Response:
+        """POST /api/coins/blacklist - Add coin to blacklist."""
+        if not self._coin_list_manager:
+            return web.json_response({"error": "coin list manager not configured"}, status=500)
+
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, Exception):
+            return web.json_response({"error": "invalid JSON"}, status=400)
+
+        coin = body.get("coin", "").upper().strip()
+        if not coin:
+            return web.json_response({"error": "missing 'coin' field"}, status=400)
+
+        reason = body.get("reason", "")
+        added = await self._coin_list_manager.add_to_blacklist(coin, reason)
+        if not added:
+            return web.json_response({"error": f"{coin} is already blacklisted"}, status=409)
+
+        return web.json_response({"success": True, "coin": coin, "reason": reason})
+
+    async def _handle_remove_blacklist(self, request: web.Request) -> web.Response:
+        """DELETE /api/coins/blacklist/{coin} - Remove coin from blacklist."""
+        if not self._coin_list_manager:
+            return web.json_response({"error": "coin list manager not configured"}, status=500)
+
+        coin = request.match_info["coin"].upper().strip()
+        removed = await self._coin_list_manager.remove_from_blacklist(coin)
+        if not removed:
+            return web.json_response({"error": f"{coin} is not in blacklist"}, status=404)
+
+        return web.json_response({"success": True, "coin": coin})
+
+    # ------------------------------------------------------------------
+    # Frontend catch-all (serves React static pages)
+    # ------------------------------------------------------------------
+
+    async def _handle_frontend_fallback(self, request: web.Request) -> web.Response:
+        """Serve React frontend pages and static files."""
+        path = request.match_info.get("path", "").strip("/")
+
+        # Try exact file match (favicon.ico, *.svg, etc.)
+        exact = FRONTEND_BUILD_DIR / path
+        if exact.is_file():
+            return web.FileResponse(exact)
+
+        # Try .html extension (/coins -> coins.html)
+        html_file = FRONTEND_BUILD_DIR / f"{path}.html"
+        if html_file.is_file():
+            return web.FileResponse(html_file)
+
+        # Try directory index (/coins/ -> coins/index.html)
+        index_file = FRONTEND_BUILD_DIR / path / "index.html"
+        if index_file.is_file():
+            return web.FileResponse(index_file)
+
+        # 404 page
+        not_found = FRONTEND_BUILD_DIR / "404.html"
+        if not_found.is_file():
+            return web.FileResponse(not_found, status=404)
+
+        return web.Response(text="Not found", status=404)
 
     # ------------------------------------------------------------------
     # Helpers
